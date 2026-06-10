@@ -29,14 +29,14 @@ final class MessengerRoutingCheck extends AbstractCheck
             return;
         }
 
-        $this->yamlAbsPath = $absPath;
-
         $parsed = Yaml::parse($content);
 
         $routing = $parsed['framework']['messenger']['routing'] ?? null;
         if (!\is_array($routing)) {
             return;
         }
+
+        $this->yamlAbsPath = $absPath;
 
         foreach (array_keys($routing) as $fqcn) {
             if (!\is_string($fqcn) || !str_starts_with($fqcn, 'App\\')) {

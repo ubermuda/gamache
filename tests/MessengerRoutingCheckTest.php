@@ -50,10 +50,12 @@ final class MessengerRoutingCheckTest extends TestCase
 
     public function test_ignores_non_app_namespace_fqcns(): void
     {
+        // The messenger.yaml has a Symfony\ class with no matching file.
+        // The check only validates App\ FQCNs, so this should produce no violations.
         $check = new MessengerRoutingCheck();
-        $check->run($this->fixtures.'/passing/config/packages/messenger.yaml');
-        $check->run($this->fixtures.'/passing/src/Message/SendWelcomeEmail.php');
+        $check->run($this->fixtures.'/non_app_namespace/config/packages/messenger.yaml');
         $result = $check->getResult();
+        self::assertFalse($result->hasFailed());
         self::assertEmpty($result->violations);
     }
 }

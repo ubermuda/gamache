@@ -46,6 +46,7 @@ final class ServiceTagNamesCheckTest extends TestCase
         $result = $check->getResult();
         self::assertTrue($result->hasFailed());
         self::assertCount(1, $result->violations);
+        self::assertSame(Severity::Error, $result->violations[0]->severity);
         self::assertStringEndsWith('config/services.yaml', $result->violations[0]->file);
     }
 
