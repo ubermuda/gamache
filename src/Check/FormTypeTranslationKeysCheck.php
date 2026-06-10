@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Gamache\Check;
 
 use PhpParser\Node\Expr\Array_;
-use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\NodeFinder;
@@ -103,10 +102,6 @@ final class FormTypeTranslationKeysCheck extends AbstractCheck
             }
 
             foreach ($optionsArg->value->items as $item) {
-                if (!$item instanceof ArrayItem) {
-                    continue;
-                }
-
                 if (!$item->key instanceof String_) {
                     continue;
                 }
@@ -136,11 +131,13 @@ final class FormTypeTranslationKeysCheck extends AbstractCheck
     private static function fqcnToBlockPrefix(string $fqcn): ?string
     {
         if (preg_match('~([^\\\\]+?)(type)?$~i', $fqcn, $matches)) {
-            return strtolower(preg_replace(
+            $snakeCased = preg_replace(
                 ['/([A-Z]+)([A-Z][a-z])/', '/([a-z\d])([A-Z])/'],
                 ['\\1_\\2', '\\1_\\2'],
                 $matches[1],
-            ));
+            );
+
+            return $snakeCased !== null ? strtolower($snakeCased) : null;
         }
 
         return null;
