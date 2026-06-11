@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+    <file source-language="en" target-language="en" datatype="plaintext" original="messages">
+        <body>
+            <trans-unit id="items.count.missing_zero">
+                <source>items.count.missing_zero</source>
+                <target>{1} One item|[2,Inf] %count% items</target>
+            </trans-unit>
+            <trans-unit id="other.count.missing_zero">
+                <source>other.count.missing_zero</source>
+                <target>One thing|Many things</target>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>
