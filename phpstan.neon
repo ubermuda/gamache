@@ -5,4 +5,10 @@ parameters:
         - src/
         - tests/
     excludePaths:
+        # PHPStan rule test fixtures: intentionally edge-case PHP analysed by
+        # the rule-test harness, not by gamache's own static analysis.
         - tests/Fixtures
+        - tests/PHPStan/Fixtures
+        - tests/PHPStan/*/Fixture/*.php
+
+    treatPhpDocTypesAsCertain: false

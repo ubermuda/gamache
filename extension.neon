@@ -1,0 +1,111 @@
+parameters:
+    gamache:
+        controllerBaseClass: 'Symfony\Bundle\FrameworkBundle\Controller\AbstractController'
+        translationCallSites: []
+        translationAttributeSites: []
+
+parametersSchema:
+    gamache: structure([
+        controllerBaseClass: string()
+        translationCallSites: listOf(structure([
+            class: string()
+            method: string()
+            argumentIndex: int()
+        ]))
+        translationAttributeSites: listOf(structure([
+            class: string()
+            argumentNames: listOf(string())
+        ]))
+    ])
+
+services:
+    -
+        class: Gamache\PHPStan\TranslationKeyValidator
+    -
+        class: Gamache\PHPStan\TranslationCallSiteRule
+        arguments:
+            callSites: %gamache.translationCallSites%
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\TranslationAttributeRule
+        arguments:
+            attributeSites: %gamache.translationAttributeSites%
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\MigrationDescriptionRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\ControllerParentRule
+        arguments:
+            controllerBaseClass: %gamache.controllerBaseClass%
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\ControllerSingleActionRule
+        arguments:
+            controllerBaseClass: %gamache.controllerBaseClass%
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\ControllerRouteAttributeRule
+        arguments:
+            controllerBaseClass: %gamache.controllerBaseClass%
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\VoterNotReadonlyRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\EnumKebabCaseRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\NotBlankNullableRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\HandlerShapeRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\CommandShapeRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\FormDataClassNotEntityRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\BuildFormConstraintsRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\RouteParamSnakeCaseRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\IsGrantedNoFullyAuthRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\DenyAccessUnlessGrantedRule
+        arguments:
+            controllerBaseClass: %gamache.controllerBaseClass%
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\EntityAsymmetricVisibilityRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\DtoRequestSuffixRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\RouteNoUnderscorePrefixRule
+        tags:
+            - phpstan.rules.rule
