@@ -38,16 +38,22 @@ final class DenyAccessUnlessGrantedRuleTest extends RuleTestCase
 
     public function test_deny_access_in_invoke_is_reported(): void
     {
-        $msg = 'AppController::__invoke() must not call $this->denyAccessUnlessGranted(). '
-              .'Use #[IsGranted] with a Voter constant and subject. '
-              .'To exempt dynamic-subject controllers, add "access is enforced per-branch" to the class docblock.';
-
         $this->analyse([
             __DIR__.'/../Fixtures/AppController.php',
             __DIR__.'/Fixture/violation.php',
         ], [
-            [$msg, 12],
-            [$msg, 23],
+            [self::message('call $this->denyAccessUnlessGranted()'), 14],
+            [self::message('call $this->denyAccessUnlessGranted()'), 25],
+            [self::message('instantiate AccessDeniedHttpException'), 37],
+            [self::message('instantiate AccessDeniedException'), 48],
+            [self::message('call $this->createAccessDeniedException()'), 56],
         ]);
+    }
+
+    private static function message(string $construct): string
+    {
+        return \sprintf('AppController::__invoke() must not %s. ', $construct)
+            .'Use #[IsGranted] with a Voter constant and subject. '
+            .'To exempt dynamic-subject controllers, add "access is enforced per-branch" to the class docblock.';
     }
 }
