@@ -144,3 +144,7 @@ services:
             currentWorkingDirectory: %currentWorkingDirectory%
         tags:
             - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\MessengerHandlerNamespaceRule
+        tags:
+            - phpstan.rules.rule
