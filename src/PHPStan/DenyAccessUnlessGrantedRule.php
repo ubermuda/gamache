@@ -18,6 +18,13 @@ use PHPStan\Rules\RuleErrorBuilder;
  */
 final readonly class DenyAccessUnlessGrantedRule implements Rule
 {
+    private const array FORBIDDEN_METHODS = ['denyAccessUnlessGranted', 'createAccessDeniedException'];
+
+    private const array ACCESS_DENIED_EXCEPTIONS = [
+        'Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException' => 'AccessDeniedHttpException',
+        'Symfony\Component\Security\Core\Exception\AccessDeniedException' => 'AccessDeniedException',
+    ];
+
     public function __construct(
         private ReflectionProvider $reflectionProvider,
         private string $controllerBaseClass,
@@ -75,30 +82,50 @@ final readonly class DenyAccessUnlessGrantedRule implements Rule
             return [];
         }
 
-        // Find all denyAccessUnlessGranted() calls anywhere in __invoke body
+        // Find all manual access-deny constructs anywhere in __invoke body
         $finder = new NodeFinder();
+
+        /** @var list<array{string, int}> $findings */
+        $findings = [];
+
         /** @var Node\Expr\MethodCall[] $calls */
         $calls = $finder->findInstanceOf($invoke->stmts, Node\Expr\MethodCall::class);
-
-        $errors = [];
         foreach ($calls as $call) {
             if (
                 $call->var instanceof Node\Expr\Variable
                 && 'this' === $call->var->name
                 && $call->name instanceof Node\Identifier
-                && 'denyAccessUnlessGranted' === $call->name->name
+                && \in_array($call->name->name, self::FORBIDDEN_METHODS, true)
             ) {
-                $errors[] = RuleErrorBuilder::message(
-                    'AppController::__invoke() must not call $this->denyAccessUnlessGranted(). '
-                    .'Use #[IsGranted] with a Voter constant and subject. '
-                    .'To exempt dynamic-subject controllers, add "access is enforced per-branch" to the class docblock.'
-                )
-                ->identifier('controller.denyAccessUnlessGranted')
-                ->line($call->getLine())
-                ->build();
+                $findings[] = [\sprintf('call $this->%s()', $call->name->name), $call->getLine()];
             }
         }
 
-        return $errors;
+        /** @var Node\Expr\New_[] $instantiations */
+        $instantiations = $finder->findInstanceOf($invoke->stmts, Node\Expr\New_::class);
+        foreach ($instantiations as $instantiation) {
+            if (!$instantiation->class instanceof Node\Name) {
+                continue;
+            }
+
+            $resolved = $scope->resolveName($instantiation->class);
+            if (\array_key_exists($resolved, self::ACCESS_DENIED_EXCEPTIONS)) {
+                $findings[] = [\sprintf('instantiate %s', self::ACCESS_DENIED_EXCEPTIONS[$resolved]), $instantiation->getLine()];
+            }
+        }
+
+        usort($findings, static fn (array $a, array $b): int => $a[1] <=> $b[1]);
+
+        return array_map(
+            static fn (array $finding): RuleError => RuleErrorBuilder::message(
+                \sprintf('AppController::__invoke() must not %s. ', $finding[0])
+                .'Use #[IsGranted] with a Voter constant and subject. '
+                .'To exempt dynamic-subject controllers, add "access is enforced per-branch" to the class docblock.'
+            )
+            ->identifier('controller.denyAccessUnlessGranted')
+            ->line($finding[1])
+            ->build(),
+            $findings,
+        );
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Controller\AppController;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 // Uses #[IsGranted] — no denyAccessUnlessGranted call
 class ValidController extends AppController
@@ -20,6 +22,8 @@ class NotAnAppController
     public function __invoke(): void
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
+
+        throw new AccessDeniedHttpException('nope');
     }
 }
 
@@ -29,5 +33,7 @@ class AnotherController extends AppController
     public function helper(): void
     {
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        throw new AccessDeniedException('nope');
     }
 }
