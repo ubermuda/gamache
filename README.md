@@ -7,7 +7,7 @@ Gamache packages a set of opinionated conventions for Symfony applications and e
 | Surface | What it provides | Docs |
 |---|---|---|
 | `gamache` CLI | 10 project-level checks (config files, templates, translations, …) | [docs/checks.md](docs/checks.md) |
-| PHPStan | 20 rules for controllers, CQRS commands, forms, routes, entities, translations | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
+| PHPStan | 21 rules for controllers, CQRS commands, forms, routes, entities, translations | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
 | PHP-CS-Fixer | 2 custom fixers for attribute formatting | [docs/php-cs-fixer.md](docs/php-cs-fixer.md) |
 | Twig-CS-Fixer | 4 custom rules for templates | [docs/twig-cs-fixer.md](docs/twig-cs-fixer.md) |
 | Rector | 1 rule that injects repositories instead of `getRepository()` calls | [docs/rector.md](docs/rector.md) |
@@ -103,7 +103,7 @@ includes:
     - vendor/ubermuda/gamache/extension.neon
 ```
 
-This registers all 20 rules at once. Four parameters control the configurable rules:
+This registers all 21 rules at once. Five parameters control the configurable rules:
 
 ```neon
 parameters:
@@ -126,6 +126,13 @@ parameters:
         # convention (default: Doctrine's base repository classes)
         repositoryNamingExcludedClasses:
             - 'App\Repository\LegacyRepository'
+
+        # Controller-name/template-name consistency check (off when unset).
+        # Group 1 of namespacePattern is the module path under templateDirectory.
+        controllerTemplates:
+            namespacePattern: '#^App\\Module\\(.+)\\Controller\\[^\\]+Controller$#'
+            templateDirectory: 'templates/Module'
+            renderMethods: [render, renderFormResponse]
 ```
 
 See [docs/phpstan-rules.md](docs/phpstan-rules.md) for every rule, its error identifier, and examples. Rules without parameters cannot be configured individually — use PHPStan's `ignoreErrors` with the rule's error identifier to opt out of one.

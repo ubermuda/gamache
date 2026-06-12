@@ -7,6 +7,16 @@ parameters:
             - 'Doctrine\ORM\EntityRepository'
             - 'Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository'
             - 'Doctrine\Persistence\ObjectRepository'
+        controllerTemplates:
+            # Regex over controller FQCNs; capture group 1 is the module-relative
+            # namespace path mirrored under templateDirectory. Empty = rule off.
+            namespacePattern: ''
+            # Template root the captured module path is appended to, relative to
+            # the working directory (or absolute). Empty = rule off.
+            templateDirectory: ''
+            # Method names whose first argument renders a page template.
+            renderMethods:
+                - render
 
 parametersSchema:
     gamache: structure([
@@ -21,6 +31,11 @@ parametersSchema:
             argumentNames: listOf(string())
         ]))
         repositoryNamingExcludedClasses: listOf(string())
+        controllerTemplates: structure([
+            namespacePattern: string()
+            templateDirectory: string()
+            renderMethods: listOf(string())
+        ])
     ])
 
 services:
@@ -118,5 +133,14 @@ services:
         class: Gamache\PHPStan\RepositoryParameterNameRule
         arguments:
             excludedClasses: %gamache.repositoryNamingExcludedClasses%
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\ControllerTemplateNameRule
+        arguments:
+            namespacePattern: %gamache.controllerTemplates.namespacePattern%
+            templateDirectory: %gamache.controllerTemplates.templateDirectory%
+            renderMethods: %gamache.controllerTemplates.renderMethods%
+            currentWorkingDirectory: %currentWorkingDirectory%
         tags:
             - phpstan.rules.rule

@@ -1,6 +1,6 @@
 # PHPStan rules
 
-Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 20 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
+Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 21 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
 
 Every error carries an identifier, so you can opt out of a single rule with PHPStan's `ignoreErrors`:
 
@@ -12,7 +12,7 @@ parameters:
 
 All rules live in the `Gamache\PHPStan` namespace.
 
-**Controllers:** [ControllerParentRule](#controllerparentrule) · [ControllerSingleActionRule](#controllersingleactionrule) · [ControllerRouteAttributeRule](#controllerrouteattributerule) · [DenyAccessUnlessGrantedRule](#denyaccessunlessgrantedrule) · [IsGrantedNoFullyAuthRule](#isgrantednofullyauthrule)
+**Controllers:** [ControllerParentRule](#controllerparentrule) · [ControllerSingleActionRule](#controllersingleactionrule) · [ControllerRouteAttributeRule](#controllerrouteattributerule) · [ControllerTemplateNameRule](#controllertemplatenamerule) · [DenyAccessUnlessGrantedRule](#denyaccessunlessgrantedrule) · [IsGrantedNoFullyAuthRule](#isgrantednofullyauthrule)
 **Routing:** [RouteNoUnderscorePrefixRule](#routenounderscoreprefixrule) · [RouteParamSnakeCaseRule](#routeparamsnakecaserule)
 **CQRS:** [CommandShapeRule](#commandshaperule) · [HandlerShapeRule](#handlershaperule)
 **Forms & DTOs:** [BuildFormConstraintsRule](#buildformconstraintsrule) · [FormDataClassNotEntityRule](#formdataclassnotentityrule) · [DtoRequestSuffixRule](#dtorequestsuffixrule) · [NotBlankNullableRule](#notblanknullablerule)
@@ -154,6 +154,53 @@ class EditProjectController extends AppController { /* … */ }
 // GOOD
 #[IsGranted(ProjectVoter::EDIT, subject: 'project')]
 class EditProjectController extends AppController { /* … */ }
+```
+
+---
+
+## ControllerTemplateNameRule
+
+**Identifier:** `controller.templateName`
+**Configured by:** `gamache.controllerTemplates` (off by default)
+
+A controller that renders a page template must have a template whose name matches the class name somewhere under its module's template directory: `CreateProjectController` → `create_project.html.twig`.
+
+- `namespacePattern` — regex over controller FQCNs; capture group 1 is the module-relative namespace path (e.g. `Project` from `App\Module\Project\Controller\CreateProjectController`), mirrored under the template root. Controllers that don't match are exempt. Empty (the default) disables the rule.
+- `templateDirectory` — template root the captured module path is appended to, relative to the working directory (or absolute). Empty (the default) disables the rule.
+- `renderMethods` — method names whose first argument renders a page template (default `[render]`; add project helpers like `renderFormResponse`).
+
+Controllers that render nothing (redirects, JSON, dispatch-only) are skipped, as are controllers that only render partials (`_*.html.twig`). Matching is lenient: case, underscores, and directory separators are ignored, and the filename alone may carry the name — `registration/check_email.html.twig` satisfies `RegistrationCheckEmailController`, `security/login.html.twig` satisfies `LoginController`, and `attach_github_repo.html.twig` satisfies `AttachGitHubRepoController`. Partials are never counted as a controller's template.
+
+> `Controller <Class> renders a template but none under <dir> matches its name (expected "<snake_case>.html.twig"; matching ignores case, underscores, and directories).`
+
+```neon
+parameters:
+    gamache:
+        controllerTemplates:
+            namespacePattern: '#^App\\Module\\(.+)\\Controller\\[^\\]+Controller$#'
+            templateDirectory: 'templates/Module'
+            renderMethods: [render, renderFormResponse]
+```
+
+```php
+// BAD — IssueBrainstormController renders issue_detail.html.twig and no
+// issue_brainstorm.html.twig exists under templates/Module/Project/
+final class IssueBrainstormController extends AppController
+{
+    public function __invoke(): Response
+    {
+        return $this->render('@Project/issue_detail.html.twig');
+    }
+}
+
+// GOOD — create_project.html.twig exists under templates/Module/Project/
+final class CreateProjectController extends AppController
+{
+    public function __invoke(): Response
+    {
+        return $this->render('@Project/create_project.html.twig');
+    }
+}
 ```
 
 ---
