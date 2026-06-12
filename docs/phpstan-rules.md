@@ -1,6 +1,6 @@
 # PHPStan rules
 
-Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 19 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
+Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 20 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
 
 Every error carries an identifier, so you can opt out of a single rule with PHPStan's `ignoreErrors`:
 
@@ -16,7 +16,7 @@ All rules live in the `Gamache\PHPStan` namespace.
 **Routing:** [RouteNoUnderscorePrefixRule](#routenounderscoreprefixrule) · [RouteParamSnakeCaseRule](#routeparamsnakecaserule)
 **CQRS:** [CommandShapeRule](#commandshaperule) · [HandlerShapeRule](#handlershaperule)
 **Forms & DTOs:** [BuildFormConstraintsRule](#buildformconstraintsrule) · [FormDataClassNotEntityRule](#formdataclassnotentityrule) · [DtoRequestSuffixRule](#dtorequestsuffixrule) · [NotBlankNullableRule](#notblanknullablerule)
-**Entities & migrations:** [EntityAsymmetricVisibilityRule](#entityasymmetricvisibilityrule) · [MigrationDescriptionRule](#migrationdescriptionrule)
+**Entities & migrations:** [EntityAsymmetricVisibilityRule](#entityasymmetricvisibilityrule) · [MigrationDescriptionRule](#migrationdescriptionrule) · [RepositoryParameterNameRule](#repositoryparameternamerule)
 **Security:** [VoterNotReadonlyRule](#voternotreadonlyrule)
 **Translations:** [TranslationCallSiteRule](#translationcallsiterule) · [TranslationAttributeRule](#translationattributerule)
 **Misc:** [EnumKebabCaseRule](#enumkebabcaserule)
@@ -378,6 +378,25 @@ public function getDescription(): string
 {
     return 'Create users table';
 }
+```
+
+---
+
+## RepositoryParameterNameRule
+
+**Identifier:** `repository.parameterName`
+**Configured by:** `gamache.repositoryNamingExcludedClasses`
+
+Constructor parameters typed with a `*Repository` class must be named after the pluralized entity noun. The expected name is derived from the repository class name: strip the `Repository` suffix, lowercase the first letter, pluralize (`WorkspaceRepository` → `$workspaces`, `GitHubRepositoryRepository` → `$gitHubRepositories`). Only constructors are checked. Classes listed in `gamache.repositoryNamingExcludedClasses` (by default Doctrine's `EntityRepository`, `ServiceEntityRepository`, and `ObjectRepository`) are exempt, as is any class named exactly `Repository` (likely an entity, not a repository type).
+
+> `Constructor parameter $<name> typed <Class> must be named $<expected> (pluralized entity noun).`
+
+```php
+// BAD
+public function __construct(private ProjectRepository $projectRepo) {}
+
+// GOOD
+public function __construct(private ProjectRepository $projects) {}
 ```
 
 ---

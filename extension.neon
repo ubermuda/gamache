@@ -3,6 +3,10 @@ parameters:
         controllerBaseClass: 'Symfony\Bundle\FrameworkBundle\Controller\AbstractController'
         translationCallSites: []
         translationAttributeSites: []
+        repositoryNamingExcludedClasses:
+            - 'Doctrine\ORM\EntityRepository'
+            - 'Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository'
+            - 'Doctrine\Persistence\ObjectRepository'
 
 parametersSchema:
     gamache: structure([
@@ -16,6 +20,7 @@ parametersSchema:
             class: string()
             argumentNames: listOf(string())
         ]))
+        repositoryNamingExcludedClasses: listOf(string())
     ])
 
 services:
@@ -107,5 +112,11 @@ services:
             - phpstan.rules.rule
     -
         class: Gamache\PHPStan\RouteNoUnderscorePrefixRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\RepositoryParameterNameRule
+        arguments:
+            excludedClasses: %gamache.repositoryNamingExcludedClasses%
         tags:
             - phpstan.rules.rule
