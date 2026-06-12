@@ -1,6 +1,6 @@
 # PHPStan rules
 
-Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 21 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
+Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 22 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
 
 Every error carries an identifier, so you can opt out of a single rule with PHPStan's `ignoreErrors`:
 
@@ -15,6 +15,7 @@ All rules live in the `Gamache\PHPStan` namespace.
 **Controllers:** [ControllerParentRule](#controllerparentrule) · [ControllerSingleActionRule](#controllersingleactionrule) · [ControllerRouteAttributeRule](#controllerrouteattributerule) · [ControllerTemplateNameRule](#controllertemplatenamerule) · [DenyAccessUnlessGrantedRule](#denyaccessunlessgrantedrule) · [IsGrantedNoFullyAuthRule](#isgrantednofullyauthrule)
 **Routing:** [RouteNoUnderscorePrefixRule](#routenounderscoreprefixrule) · [RouteParamSnakeCaseRule](#routeparamsnakecaserule)
 **CQRS:** [CommandShapeRule](#commandshaperule) · [HandlerShapeRule](#handlershaperule)
+**Messenger:** [MessengerHandlerNamespaceRule](#messengerhandlernamespacerule)
 **Forms & DTOs:** [BuildFormConstraintsRule](#buildformconstraintsrule) · [FormDataClassNotEntityRule](#formdataclassnotentityrule) · [DtoRequestSuffixRule](#dtorequestsuffixrule) · [NotBlankNullableRule](#notblanknullablerule)
 **Entities & migrations:** [EntityAsymmetricVisibilityRule](#entityasymmetricvisibilityrule) · [MigrationDescriptionRule](#migrationdescriptionrule) · [RepositoryParameterNameRule](#repositoryparameternamerule)
 **Security:** [VoterNotReadonlyRule](#voternotreadonlyrule)
@@ -289,6 +290,36 @@ final readonly class CreateFooHandler
 {
     public function __construct(private FooRepository $repository) {}
     public function __invoke(CreateFooCommand $command): void {}
+}
+```
+
+---
+
+## MessengerHandlerNamespaceRule
+
+**Identifier:** `messenger.handlerNamespaceMismatch`
+
+A class (or method) marked `#[AsMessageHandler]` must live in the same namespace as the message it handles. The message type is taken from the attribute's `handles:` argument when present, otherwise from the first parameter of the handling method (`method:` argument, defaulting to `__invoke()`). Handlers whose message type can't be resolved statically (no type hint, builtin type, union) are skipped.
+
+> `Message handler <HandlerFqcn> and its message <MessageFqcn> must live in the same namespace.`
+
+```php
+// BAD — message lives in another namespace
+namespace App\Module\Project\Messenger;
+
+#[AsMessageHandler]
+final readonly class ProvisionWorkspaceHandler
+{
+    public function __invoke(\App\Module\Workspace\ProvisionWorkspace $message): void {}
+}
+
+// GOOD — message and handler side by side
+namespace App\Module\Project\Messenger;
+
+#[AsMessageHandler]
+final readonly class ProvisionWorkspaceHandler
+{
+    public function __invoke(ProvisionWorkspace $message): void {}
 }
 ```
 
