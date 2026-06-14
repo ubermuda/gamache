@@ -1,6 +1,6 @@
 # PHPStan rules
 
-Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 22 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
+Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 23 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
 
 Every error carries an identifier, so you can opt out of a single rule with PHPStan's `ignoreErrors`:
 
@@ -12,7 +12,7 @@ parameters:
 
 All rules live in the `Gamache\PHPStan` namespace.
 
-**Controllers:** [ControllerParentRule](#controllerparentrule) · [ControllerSingleActionRule](#controllersingleactionrule) · [ControllerRouteAttributeRule](#controllerrouteattributerule) · [ControllerTemplateNameRule](#controllertemplatenamerule) · [DenyAccessUnlessGrantedRule](#denyaccessunlessgrantedrule) · [IsGrantedNoFullyAuthRule](#isgrantednofullyauthrule)
+**Controllers:** [ControllerParentRule](#controllerparentrule) · [ControllerSingleActionRule](#controllersingleactionrule) · [ControllerRouteAttributeRule](#controllerrouteattributerule) · [ControllerTemplateNameRule](#controllertemplatenamerule) · [DenyAccessUnlessGrantedRule](#denyaccessunlessgrantedrule) · [IsGrantedNoFullyAuthRule](#isgrantednofullyauthrule) · [IsGrantedClassLevelRule](#isgrantedclasslevelrule)
 **Routing:** [RouteNoUnderscorePrefixRule](#routenounderscoreprefixrule) · [RouteParamCamelCaseRule](#routeparamcamelcaserule)
 **CQRS:** [CommandShapeRule](#commandshaperule) · [HandlerShapeRule](#handlershaperule)
 **Messenger:** [MessengerHandlerNamespaceRule](#messengerhandlernamespacerule)
@@ -155,6 +155,33 @@ class EditProjectController extends AppController { /* … */ }
 // GOOD
 #[IsGranted(ProjectVoter::EDIT, subject: 'project')]
 class EditProjectController extends AppController { /* … */ }
+```
+
+---
+
+## IsGrantedClassLevelRule
+
+**Identifier:** `controller.isGrantedNotClassLevel`
+**Configured by:** `gamache.controllerBaseClass`
+
+`#[IsGranted]` on a controller must be declared at the **class** level, not on the action method — single-action controllers carry their access control on the class, like `#[Route]`. Symfony reads `#[IsGranted]` from both the class and the method and resolves the subject from the controller arguments either way, so moving it up is behaviour-preserving.
+
+> `#[IsGranted] on <Class>::<method>() must be declared at the class level, not on the method (single-action controllers carry access control on the class, like #[Route]). The subject still resolves from the controller arguments.`
+
+```php
+// BAD — method-level
+class DeleteEventController extends AppController
+{
+    #[IsGranted('delete', 'event')]
+    public function __invoke(Event $event): Response { /* … */ }
+}
+
+// GOOD — class-level
+#[IsGranted('delete', 'event')]
+class DeleteEventController extends AppController
+{
+    public function __invoke(Event $event): Response { /* … */ }
+}
 ```
 
 ---
