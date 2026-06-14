@@ -14,9 +14,9 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * @implements Rule<Node\Attribute>
  */
-final readonly class RouteParamSnakeCaseRule implements Rule
+final readonly class RouteParamCamelCaseRule implements Rule
 {
-    private const string SNAKE_CASE = '/^[a-z][a-z0-9]*(_[a-z0-9]+)*$/';
+    private const string CAMEL_CASE = '/^[a-z][a-zA-Z0-9]*$/';
 
     public function getNodeType(): string
     {
@@ -53,7 +53,7 @@ final readonly class RouteParamSnakeCaseRule implements Rule
 
         $errors = [];
         foreach ($matches[1] as $raw) {
-            // Strip Symfony mapped-param suffix: {slug:org} → slug
+            // Strip Symfony mapped-param suffix: {id:org} → id
             $name = str_contains($raw, ':')
                 ? substr($raw, 0, (int) \strpos($raw, ':'))
                 : $raw;
@@ -62,12 +62,12 @@ final readonly class RouteParamSnakeCaseRule implements Rule
                 $name = substr($name, 0, (int) \strpos($name, '<'));
             }
 
-            if (!preg_match(self::SNAKE_CASE, $name)) {
+            if (!preg_match(self::CAMEL_CASE, $name)) {
                 $errors[] = RuleErrorBuilder::message(sprintf(
-                    'Route parameter "%s" must be snake_case.',
+                    'Route parameter "%s" must be camelCase.',
                     $name,
                 ))
-                ->identifier('route.paramNotSnakeCase')
+                ->identifier('route.paramNotCamelCase')
                 ->line($node->getLine())
                 ->build();
             }

@@ -104,7 +104,7 @@ services:
         tags:
             - phpstan.rules.rule
     -
-        class: Gamache\PHPStan\RouteParamSnakeCaseRule
+        class: Gamache\PHPStan\RouteParamCamelCaseRule
         tags:
             - phpstan.rules.rule
     -
