@@ -108,6 +108,12 @@ services:
         tags:
             - phpstan.rules.rule
     -
+        class: Gamache\PHPStan\IsGrantedClassLevelRule
+        arguments:
+            controllerBaseClass: %gamache.controllerBaseClass%
+        tags:
+            - phpstan.rules.rule
+    -
         class: Gamache\PHPStan\IsGrantedNoFullyAuthRule
         tags:
             - phpstan.rules.rule
