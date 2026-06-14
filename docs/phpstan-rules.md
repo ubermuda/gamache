@@ -13,7 +13,7 @@ parameters:
 All rules live in the `Gamache\PHPStan` namespace.
 
 **Controllers:** [ControllerParentRule](#controllerparentrule) · [ControllerSingleActionRule](#controllersingleactionrule) · [ControllerRouteAttributeRule](#controllerrouteattributerule) · [ControllerTemplateNameRule](#controllertemplatenamerule) · [DenyAccessUnlessGrantedRule](#denyaccessunlessgrantedrule) · [IsGrantedNoFullyAuthRule](#isgrantednofullyauthrule)
-**Routing:** [RouteNoUnderscorePrefixRule](#routenounderscoreprefixrule) · [RouteParamSnakeCaseRule](#routeparamsnakecaserule)
+**Routing:** [RouteNoUnderscorePrefixRule](#routenounderscoreprefixrule) · [RouteParamCamelCaseRule](#routeparamcamelcaserule)
 **CQRS:** [CommandShapeRule](#commandshaperule) · [HandlerShapeRule](#handlershaperule)
 **Messenger:** [MessengerHandlerNamespaceRule](#messengerhandlernamespacerule)
 **Forms & DTOs:** [BuildFormConstraintsRule](#buildformconstraintsrule) · [FormDataClassNotEntityRule](#formdataclassnotentityrule) · [DtoRequestSuffixRule](#dtorequestsuffixrule) · [NotBlankNullableRule](#notblanknullablerule)
@@ -224,20 +224,20 @@ Route paths must not begin with `/_` — Symfony reserves that prefix for intern
 
 ---
 
-## RouteParamSnakeCaseRule
+## RouteParamCamelCaseRule
 
-**Identifier:** `route.paramNotSnakeCase`
+**Identifier:** `route.paramNotCamelCase`
 
-Route parameters must be snake_case. Requirement suffixes (`{id<\d+>}`) and mapped-param suffixes (`{slug:org}`) are stripped before the name is validated.
+Route parameters must be camelCase, so they mirror the camelCase entity property / DTO field they resolve to (Symfony's `EntityValueResolver` uses the route-param name as the Doctrine lookup field). Requirement suffixes (`{id<\d+>}`) and mapped-param suffixes (`{id:org}`) are stripped before the name is validated.
 
-> `Route parameter "<name>" must be snake_case.`
+> `Route parameter "<name>" must be camelCase.`
 
 ```php
 // BAD
-#[Route('/{orgId}/projects/{projectSlug}')]
+#[Route('/{org_id}/projects/{project_slug}')]
 
 // GOOD
-#[Route('/{org_id}/projects/{project_slug}')]
+#[Route('/{orgId}/projects/{projectSlug}')]
 ```
 
 ---
