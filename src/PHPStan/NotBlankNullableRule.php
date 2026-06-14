@@ -57,22 +57,39 @@ final readonly class NotBlankNullableRule implements Rule
                 continue;
             }
 
-            if ($this->isNullable($param->type)) {
+            $varName = $param->var instanceof Node\Expr\Variable ? $param->var->name : null;
+            $paramName = is_string($varName) ? $varName : '?';
+
+            if (!$this->isNullable($param->type)) {
+                $errors[] = RuleErrorBuilder::message(sprintf(
+                    'Promoted property $%s has #[NotBlank] but is not nullable. Use ?string or string|null.',
+                    $paramName,
+                ))
+                ->identifier('dto.notBlankNotNullable')
+                ->line($param->getLine())
+                ->build();
+
                 continue;
             }
 
-            $varName = $param->var instanceof Node\Expr\Variable ? $param->var->name : null;
-            $paramName = is_string($varName) ? $varName : '?';
-            $errors[] = RuleErrorBuilder::message(sprintf(
-                'Promoted property $%s has #[NotBlank] but is not nullable. Use ?string or string|null.',
-                $paramName,
-            ))
-            ->identifier('dto.notBlankNotNullable')
-            ->line($param->getLine())
-            ->build();
+            if (null !== $param->default && !$this->isNullLiteral($param->default)) {
+                $errors[] = RuleErrorBuilder::message(sprintf(
+                    'Promoted property $%s has #[NotBlank] and is nullable but defaults to a non-null value. Default it to null (or omit the default) so "absent" is not conflated with "empty".',
+                    $paramName,
+                ))
+                ->identifier('dto.notBlankDefaultNotNull')
+                ->line($param->getLine())
+                ->build();
+            }
         }
 
         return $errors;
+    }
+
+    private function isNullLiteral(Node\Expr $expr): bool
+    {
+        return $expr instanceof Node\Expr\ConstFetch
+            && 'null' === strtolower($expr->name->toString());
     }
 
     private function isNullable(Node\ComplexType|Node\Identifier|Node\Name|null $type): bool
