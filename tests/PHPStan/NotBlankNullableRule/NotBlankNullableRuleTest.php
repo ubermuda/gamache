@@ -32,4 +32,14 @@ final class NotBlankNullableRuleTest extends RuleTestCase
             ],
         ]);
     }
+
+    public function test_nullable_param_with_non_null_default_is_reported(): void
+    {
+        $this->analyse([__DIR__.'/Fixture/violationDefault.php'], [
+            [
+                'Promoted property $name has #[NotBlank] and is nullable but defaults to a non-null value. Default it to null (or omit the default) so "absent" is not conflated with "empty".',
+                10,
+            ],
+        ]);
+    }
 }

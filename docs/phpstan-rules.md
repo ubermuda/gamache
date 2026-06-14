@@ -392,23 +392,28 @@ class CreateProjectFormType extends AbstractType {}
 
 ## NotBlankNullableRule
 
-**Identifier:** `dto.notBlankNotNullable`
+**Identifiers:** `dto.notBlankNotNullable`, `dto.notBlankDefaultNotNull`
 
-A promoted property with `#[NotBlank]` must be nullable. Symfony forms submit empty fields as `null`; with a non-nullable type that causes a `TypeError` before validation runs. With `?string $x = null`, `NotBlank` reports a proper validation error instead.
+A promoted property with `#[NotBlank]` must be nullable **and**, if it has a default, default to `null`. Symfony forms submit empty fields as `null`; with a non-nullable type that causes a `TypeError` before validation runs. The default must be `null` (not `''`/`0`) so "absent" is not conflated with "empty" — `NotBlank` rejects both, and consumers reading the validated value should assert presence (`$dto->name ?? throw new \LogicException(...)`) rather than fabricate an empty value.
 
 > `Promoted property $<name> has #[NotBlank] but is not nullable. Use ?string or string|null.`
+> `Promoted property $<name> has #[NotBlank] and is nullable but defaults to a non-null value. Default it to null (or omit the default) so "absent" is not conflated with "empty".`
 
 ```php
 // BAD
 public function __construct(
     #[Assert\NotBlank]
-    public string $name = '',
+    public string $name = '',   // not nullable
+    #[Assert\NotBlank]
+    public ?string $email = '', // nullable but defaults to ''
 ) {}
 
 // GOOD
 public function __construct(
     #[Assert\NotBlank]
     public ?string $name = null,
+    #[Assert\NotBlank]
+    public ?string $email = null,
 ) {}
 ```
 
