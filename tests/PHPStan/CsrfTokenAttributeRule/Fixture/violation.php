@@ -9,9 +9,11 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 final class ImperativeCsrfController extends AppController
 {
-    public function __invoke(CsrfTokenManagerInterface $csrfTokenManager): void
+    public function __construct(private CsrfTokenManagerInterface $csrfTokenManager) {}
+
+    public function __invoke(): void
     {
         $this->isCsrfTokenValid('id', 'token');
-        $csrfTokenManager->isTokenValid(new CsrfToken('id', 'token'));
+        $this->csrfTokenManager->isTokenValid(new CsrfToken('id', 'token'));
     }
 }

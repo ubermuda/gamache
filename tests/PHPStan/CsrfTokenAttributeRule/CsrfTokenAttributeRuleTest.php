@@ -15,7 +15,7 @@ final class CsrfTokenAttributeRuleTest extends RuleTestCase
 {
     protected function getRule(): Rule
     {
-        return new CsrfTokenAttributeRule($this->createReflectionProvider(), 'App\Controller\AppController', 'App\Security\Attribute\CsrfToken');
+        return new CsrfTokenAttributeRule('App\Controller\AppController', 'App\Security\Attribute\CsrfToken');
     }
 
     public function test_controller_without_imperative_checks_passes(): void
@@ -34,11 +34,11 @@ final class CsrfTokenAttributeRuleTest extends RuleTestCase
         ], [
             [
                 'Controller must not call isCsrfTokenValid() to validate CSRF tokens imperatively. Use the #[App\Security\Attribute\CsrfToken] attribute instead; validation runs in the listener before the action.',
-                14,
+                16,
             ],
             [
                 'Controller must not call isTokenValid() to validate CSRF tokens imperatively. Use the #[App\Security\Attribute\CsrfToken] attribute instead; validation runs in the listener before the action.',
-                15,
+                17,
             ],
         ]);
     }
