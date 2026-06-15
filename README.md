@@ -7,7 +7,7 @@ Gamache packages a set of opinionated conventions for Symfony applications and e
 | Surface | What it provides | Docs |
 |---|---|---|
 | `gamache` CLI | 10 project-level checks (config files, templates, translations, …) | [docs/checks.md](docs/checks.md) |
-| PHPStan | 23 rules for controllers, CQRS commands, forms, routes, entities, translations | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
+| PHPStan | 25 rules for controllers, CQRS commands, forms, routes, entities, translations, security | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
 | PHP-CS-Fixer | 2 custom fixers for attribute formatting | [docs/php-cs-fixer.md](docs/php-cs-fixer.md) |
 | Twig-CS-Fixer | 4 custom rules for templates | [docs/twig-cs-fixer.md](docs/twig-cs-fixer.md) |
 | Rector | 1 rule that injects repositories instead of `getRepository()` calls | [docs/rector.md](docs/rector.md) |
@@ -103,13 +103,25 @@ includes:
     - vendor/ubermuda/gamache/extension.neon
 ```
 
-This registers all 23 rules at once. Five parameters control the configurable rules:
+This registers all 25 rules at once. Seven parameters control the configurable rules:
 
 ```neon
 parameters:
     gamache:
         # Base class your controllers must extend (default: AbstractController)
         controllerBaseClass: 'App\Controller\AppController'
+
+        # #[IsGranted] string literals starting with one of these prefixes are
+        # exempt from the Voter-constant rule (default: the four below)
+        isGrantedAllowedAttributePrefixes:
+            - 'ROLE_'
+            - 'IS_AUTHENTICATED'
+            - 'PUBLIC_ACCESS'
+            - 'IS_IMPERSONATOR'
+
+        # Your declarative CSRF attribute FQCN — named in the imperative-CSRF
+        # error message (default: '' = generic message)
+        csrfTokenAttributeClass: 'App\Security\Attribute\CsrfToken'
 
         # Extra call sites whose string argument must be a translation key
         translationCallSites:
