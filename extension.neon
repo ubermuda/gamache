@@ -1,6 +1,12 @@
 parameters:
     gamache:
         controllerBaseClass: 'Symfony\Bundle\FrameworkBundle\Controller\AbstractController'
+        csrfTokenAttributeClass: ''
+        isGrantedAllowedAttributePrefixes:
+            - 'ROLE_'
+            - 'IS_AUTHENTICATED'
+            - 'PUBLIC_ACCESS'
+            - 'IS_IMPERSONATOR'
         translationCallSites: []
         translationAttributeSites: []
         repositoryNamingExcludedClasses:
@@ -21,6 +27,8 @@ parameters:
 parametersSchema:
     gamache: structure([
         controllerBaseClass: string()
+        csrfTokenAttributeClass: string()
+        isGrantedAllowedAttributePrefixes: listOf(string())
         translationCallSites: listOf(structure([
             class: string()
             method: string()
@@ -108,6 +116,12 @@ services:
         tags:
             - phpstan.rules.rule
     -
+        class: Gamache\PHPStan\IsGrantedVoterConstantRule
+        arguments:
+            allowedAttributePrefixes: %gamache.isGrantedAllowedAttributePrefixes%
+        tags:
+            - phpstan.rules.rule
+    -
         class: Gamache\PHPStan\IsGrantedClassLevelRule
         arguments:
             controllerBaseClass: %gamache.controllerBaseClass%
@@ -121,6 +135,13 @@ services:
         class: Gamache\PHPStan\DenyAccessUnlessGrantedRule
         arguments:
             controllerBaseClass: %gamache.controllerBaseClass%
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\CsrfTokenAttributeRule
+        arguments:
+            controllerBaseClass: %gamache.controllerBaseClass%
+            csrfTokenAttributeClass: %gamache.csrfTokenAttributeClass%
         tags:
             - phpstan.rules.rule
     -

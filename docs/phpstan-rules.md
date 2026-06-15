@@ -1,6 +1,6 @@
 # PHPStan rules
 
-Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 23 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
+Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 25 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
 
 Every error carries an identifier, so you can opt out of a single rule with PHPStan's `ignoreErrors`:
 
@@ -12,7 +12,7 @@ parameters:
 
 All rules live in the `Gamache\PHPStan` namespace.
 
-**Controllers:** [ControllerParentRule](#controllerparentrule) · [ControllerSingleActionRule](#controllersingleactionrule) · [ControllerRouteAttributeRule](#controllerrouteattributerule) · [ControllerTemplateNameRule](#controllertemplatenamerule) · [DenyAccessUnlessGrantedRule](#denyaccessunlessgrantedrule) · [IsGrantedNoFullyAuthRule](#isgrantednofullyauthrule) · [IsGrantedClassLevelRule](#isgrantedclasslevelrule)
+**Controllers:** [ControllerParentRule](#controllerparentrule) · [ControllerSingleActionRule](#controllersingleactionrule) · [ControllerRouteAttributeRule](#controllerrouteattributerule) · [ControllerTemplateNameRule](#controllertemplatenamerule) · [DenyAccessUnlessGrantedRule](#denyaccessunlessgrantedrule) · [IsGrantedNoFullyAuthRule](#isgrantednofullyauthrule) · [IsGrantedClassLevelRule](#isgrantedclasslevelrule) · [IsGrantedVoterConstantRule](#isgrantedvoterconstantrule) · [CsrfTokenAttributeRule](#csrftokenattributerule)
 **Routing:** [RouteNoUnderscorePrefixRule](#routenounderscoreprefixrule) · [RouteParamCamelCaseRule](#routeparamcamelcaserule)
 **CQRS:** [CommandShapeRule](#commandshaperule) · [HandlerShapeRule](#handlershaperule)
 **Messenger:** [MessengerHandlerNamespaceRule](#messengerhandlernamespacerule)
@@ -181,6 +181,84 @@ class DeleteEventController extends AppController
 class DeleteEventController extends AppController
 {
     public function __invoke(Event $event): Response { /* … */ }
+}
+```
+
+---
+
+## IsGrantedVoterConstantRule
+
+**Identifier:** `security.isGrantedVoterConstant`
+**Configured by:** `gamache.isGrantedAllowedAttributePrefixes`
+
+The attribute argument of `#[IsGranted]` must reference a Voter class constant, not a bare string literal — so each attribute name has a single source of truth and a typo becomes an "undefined constant" error instead of a silent always-deny. Framework attributes that have no Voter constant are exempt: any literal whose value starts with one of the configured prefixes (default `ROLE_`, `IS_AUTHENTICATED`, `PUBLIC_ACCESS`, `IS_IMPERSONATOR`) passes. Both the first positional argument and the named `attribute:` form are checked; non-literal arguments (constant fetches, expressions) are never flagged.
+
+> `The #[IsGranted] attribute '<value>' must reference a Voter class constant (e.g. EventVoter::EDIT), not a string literal. Framework attributes (<prefixes>) are exempt.`
+
+```neon
+parameters:
+    gamache:
+        isGrantedAllowedAttributePrefixes:
+            - 'ROLE_'
+            - 'IS_AUTHENTICATED'
+            - 'PUBLIC_ACCESS'
+            - 'IS_IMPERSONATOR'
+```
+
+```php
+// BAD — string literal
+#[IsGranted('edit', subject: 'project')]
+class EditProjectController extends AppController { /* … */ }
+
+// GOOD — Voter constant
+#[IsGranted(ProjectVoter::EDIT, subject: 'project')]
+class EditProjectController extends AppController { /* … */ }
+
+// GOOD — framework attribute, exempt (no Voter constant exists for it)
+#[IsGranted('ROLE_ADMIN')]
+class AdminDashboardController extends AppController { /* … */ }
+```
+
+---
+
+## CsrfTokenAttributeRule
+
+**Identifier:** `controller.csrfTokenAttribute`
+**Configured by:** `gamache.controllerBaseClass`, `gamache.csrfTokenAttributeClass`
+
+Controllers must validate CSRF tokens declaratively — with a `#[CsrfToken]` attribute checked by a listener before the action runs — not imperatively inside the action body. Within any subclass of the configured base controller, the rule flags two imperative patterns:
+
+- `$this->isCsrfTokenValid(...)` — the `AbstractController` helper
+- `$manager->isTokenValid(...)` — where the receiver is a `Symfony\Component\Security\Csrf\CsrfTokenManagerInterface`
+
+Classes that aren't controllers (e.g. the listener that backs the attribute) are not flagged, so the rule never trips on the validation machinery itself. `gamache.csrfTokenAttributeClass` is optional and affects only the message: set it to your project's attribute FQCN (e.g. `App\Security\Attribute\CsrfToken`) and the error names it; leave it empty (the default) for a generic message. The attribute and its listener are project-supplied — gamache enforces the convention, it does not ship the attribute.
+
+> `Controller must not call <method>() to validate CSRF tokens imperatively. Use the #[App\Security\Attribute\CsrfToken] attribute instead; validation runs in the listener before the action.`
+
+```neon
+parameters:
+    gamache:
+        csrfTokenAttributeClass: 'App\Security\Attribute\CsrfToken'
+```
+
+```php
+// BAD — imperative check inside the action
+class DeleteProjectController extends AppController
+{
+    public function __invoke(Request $request, Project $project): Response
+    {
+        if (!$this->isCsrfTokenValid('delete_project', $request->request->getString('_csrf_token'))) {
+            throw $this->createAccessDeniedException();
+        }
+        // …
+    }
+}
+
+// GOOD — declarative; the listener validates before __invoke() runs
+#[CsrfToken('delete_project')]
+class DeleteProjectController extends AppController
+{
+    public function __invoke(Project $project): Response { /* … */ }
 }
 ```
 
