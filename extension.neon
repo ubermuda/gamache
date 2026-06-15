@@ -1,6 +1,11 @@
 parameters:
     gamache:
         controllerBaseClass: 'Symfony\Bundle\FrameworkBundle\Controller\AbstractController'
+        isGrantedAllowedAttributePrefixes:
+            - 'ROLE_'
+            - 'IS_AUTHENTICATED'
+            - 'PUBLIC_ACCESS'
+            - 'IS_IMPERSONATOR'
         translationCallSites: []
         translationAttributeSites: []
         repositoryNamingExcludedClasses:
@@ -21,6 +26,7 @@ parameters:
 parametersSchema:
     gamache: structure([
         controllerBaseClass: string()
+        isGrantedAllowedAttributePrefixes: listOf(string())
         translationCallSites: listOf(structure([
             class: string()
             method: string()
@@ -105,6 +111,12 @@ services:
             - phpstan.rules.rule
     -
         class: Gamache\PHPStan\RouteParamCamelCaseRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\IsGrantedVoterConstantRule
+        arguments:
+            allowedAttributePrefixes: %gamache.isGrantedAllowedAttributePrefixes%
         tags:
             - phpstan.rules.rule
     -
