@@ -2,22 +2,33 @@
 
 Two custom fixers in the `Gamache\PhpCsFixer` namespace. Both are safe (non-risky) and fix code automatically.
 
-Register them in `.php-cs-fixer.dist.php`:
+## Recommended setup
+
+Register via the `Fixers` aggregate in `.php-cs-fixer.dist.php`:
 
 ```php
-use Gamache\PhpCsFixer\BlankLineBetweenAttributedParametersFixer;
-use Gamache\PhpCsFixer\MultilineAttributeFixer;
+use Gamache\PhpCsFixer\Fixers;
 
 return (new PhpCsFixer\Config())
-    ->registerCustomFixers([
-        new BlankLineBetweenAttributedParametersFixer(),
-        new MultilineAttributeFixer(),
-    ])
+    ->registerCustomFixers(new Fixers())
     ->setRules([
-        'Gamache/blank_line_between_attributed_parameters' => true,
-        'Gamache/multiline_attribute' => true,
+        '@Symfony' => true,
+        ...Fixers::rules(),
     ]);
 ```
+
+Referencing `Fixers` instead of listing rules by hand means new gamache fixers and rule updates apply automatically when you `composer update`.
+
+`Fixers::rules()` enables, on top of the two custom fixers:
+
+| Rule | Config | Why |
+|---|---|---|
+| `Gamache/multiline_attribute` | `attributes: ['Route']`, `minimum_arguments: 3` | Expand `#[Route(...)]` with 3+ arguments to one per line |
+| `multiline_promoted_properties` | `true` | One promoted constructor property per line |
+| `php_unit_method_casing` | `snake_case` | Test methods read as sentences (overrides the `@Symfony` camelCase default) |
+| `ordered_attributes` | `true` | Alphabetical attribute ordering |
+
+Spread `...Fixers::rules()` *after* your base ruleset (`@Symfony`) so the snake_case override wins, and list any per-rule overrides after it.
 
 ---
 

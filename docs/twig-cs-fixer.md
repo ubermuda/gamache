@@ -2,24 +2,22 @@
 
 Four custom rules in the `Gamache\TwigCsFixer` namespace for [twig-cs-fixer](https://github.com/VincentLanglet/Twig-CS-Fixer). They report violations; none rewrites your templates.
 
-Register them in `.twig-cs-fixer.php`:
+## Recommended setup
+
+Register all gamache twig rules via `GamacheStandard` in `.twig-cs-fixer.php`:
 
 ```php
-use Gamache\TwigCsFixer\CsrfTokenValueRule;
-use Gamache\TwigCsFixer\IncludeOnlyRule;
-use Gamache\TwigCsFixer\InlineSvgRule;
-use Gamache\TwigCsFixer\TranslationKeyRule;
+use Gamache\TwigCsFixer\GamacheStandard;
 use TwigCsFixer\Config\Config;
 use TwigCsFixer\Ruleset\Ruleset;
 
 $ruleset = new Ruleset();
-$ruleset->addRule(new CsrfTokenValueRule());
-$ruleset->addRule(new IncludeOnlyRule());
-$ruleset->addRule(new InlineSvgRule());
-$ruleset->addRule(new TranslationKeyRule());
+$ruleset->addStandard(new GamacheStandard());
 
 return (new Config())->setRuleset($ruleset);
 ```
+
+Using `GamacheStandard` means new gamache twig rules apply automatically when you `composer update`.
 
 ---
 

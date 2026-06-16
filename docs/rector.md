@@ -1,18 +1,26 @@
-# Rector rule
+# Rector rules
 
-One Rector rule in the `Gamache\Rector` namespace.
+Custom Rector rules in the `Gamache\Rector` namespace.
 
-Register it in `rector.php`:
+## Recommended setup
+
+Enable all gamache Rector conventions in `rector.php` via the set list:
 
 ```php
-use Gamache\Rector\InjectRepositoryInsteadOfGetRepositoryRector;
+use Gamache\Rector\GamacheSetList;
 use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
-    ->withRules([
-        InjectRepositoryInsteadOfGetRepositoryRector::class,
-    ]);
+    ->withSets([GamacheSetList::CONVENTIONS]);
 ```
+
+`GamacheSetList::CONVENTIONS` bundles:
+
+- `InjectRepositoryInsteadOfGetRepositoryRector` (custom) — rewrites constructors to inject typed repositories
+- `SortCallLikeNamedArgsRector` and `SortAttributeNamedArgsRector` (built-in) — reorder named arguments to match parameter declaration order
+- `PropertyHookRector` (built-in, PHP 8.4) — converts eligible properties to property hooks
+
+New gamache rules apply automatically when you `composer update`. Note `InjectRepositoryInsteadOfGetRepositoryRector` and `PropertyHookRector` rewrite your code structure — run `vendor/bin/rector process --dry-run` after upgrading to review the diff.
 
 ---
 
