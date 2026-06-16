@@ -2,22 +2,22 @@
 
 Two custom fixers in the `Gamache\PhpCsFixer` namespace. Both are safe (non-risky) and fix code automatically.
 
-Register them in `.php-cs-fixer.dist.php`:
+## Recommended setup
+
+Register via the `Fixers` aggregate in `.php-cs-fixer.dist.php`:
 
 ```php
-use Gamache\PhpCsFixer\BlankLineBetweenAttributedParametersFixer;
-use Gamache\PhpCsFixer\MultilineAttributeFixer;
+use Gamache\PhpCsFixer\Fixers;
 
 return (new PhpCsFixer\Config())
-    ->registerCustomFixers([
-        new BlankLineBetweenAttributedParametersFixer(),
-        new MultilineAttributeFixer(),
-    ])
+    ->registerCustomFixers(new Fixers())
     ->setRules([
-        'Gamache/blank_line_between_attributed_parameters' => true,
-        'Gamache/multiline_attribute' => true,
+        '@Symfony' => true,
+        ...Fixers::rules(),
     ]);
 ```
+
+Referencing `Fixers` instead of listing rules by hand means new gamache fixers and rule updates apply automatically when you `composer update`. `Fixers::rules()` includes the built-in `ordered_attributes` rule (alphabetical attribute ordering).
 
 ---
 

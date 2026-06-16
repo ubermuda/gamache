@@ -10,7 +10,7 @@ Gamache packages a set of opinionated conventions for Symfony applications and e
 | PHPStan | 25 rules for controllers, CQRS commands, forms, routes, entities, translations, security | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
 | PHP-CS-Fixer | 2 custom fixers for attribute formatting | [docs/php-cs-fixer.md](docs/php-cs-fixer.md) |
 | Twig-CS-Fixer | 4 custom rules for templates | [docs/twig-cs-fixer.md](docs/twig-cs-fixer.md) |
-| Rector | 1 rule that injects repositories instead of `getRepository()` calls | [docs/rector.md](docs/rector.md) |
+| Rector | 1 custom rule + 2 built-in rules for repository injection and argument ordering | [docs/rector.md](docs/rector.md) |
 
 Each surface is independent — adopt one, several, or all of them.
 
@@ -154,19 +154,17 @@ See [docs/phpstan-rules.md](docs/phpstan-rules.md) for every rule, its error ide
 Register the custom fixers in `.php-cs-fixer.dist.php`:
 
 ```php
-use Gamache\PhpCsFixer\BlankLineBetweenAttributedParametersFixer;
-use Gamache\PhpCsFixer\MultilineAttributeFixer;
+use Gamache\PhpCsFixer\Fixers;
 
 return (new PhpCsFixer\Config())
-    ->registerCustomFixers([
-        new BlankLineBetweenAttributedParametersFixer(),
-        new MultilineAttributeFixer(),
-    ])
+    ->registerCustomFixers(new Fixers())
     ->setRules([
-        'Gamache/blank_line_between_attributed_parameters' => true,
-        'Gamache/multiline_attribute' => ['attributes' => ['Route'], 'minimum_arguments' => 1],
+        '@Symfony' => true,
+        ...Fixers::rules(),
     ]);
 ```
+
+Referencing `Fixers` instead of listing rules by hand means new gamache fixers and rule updates apply automatically when you `composer update`. `Fixers::rules()` includes the built-in `ordered_attributes` rule (alphabetical attribute ordering).
 
 See [docs/php-cs-fixer.md](docs/php-cs-fixer.md).
 
@@ -175,37 +173,33 @@ See [docs/php-cs-fixer.md](docs/php-cs-fixer.md).
 Register the rules in `.twig-cs-fixer.php`:
 
 ```php
-use Gamache\TwigCsFixer\CsrfTokenValueRule;
-use Gamache\TwigCsFixer\IncludeOnlyRule;
-use Gamache\TwigCsFixer\InlineSvgRule;
-use Gamache\TwigCsFixer\TranslationKeyRule;
+use Gamache\TwigCsFixer\GamacheStandard;
 use TwigCsFixer\Config\Config;
 use TwigCsFixer\Ruleset\Ruleset;
 
 $ruleset = new Ruleset();
-$ruleset->addRule(new CsrfTokenValueRule());
-$ruleset->addRule(new IncludeOnlyRule());
-$ruleset->addRule(new InlineSvgRule());
-$ruleset->addRule(new TranslationKeyRule());
+$ruleset->addStandard(new GamacheStandard());
 
 return (new Config())->setRuleset($ruleset);
 ```
 
+Using `GamacheStandard` means new gamache twig rules apply automatically when you `composer update`.
+
 These rules report violations; they don't rewrite your templates. See [docs/twig-cs-fixer.md](docs/twig-cs-fixer.md).
 
-## Rector rule
+## Rector rules
 
-Register the rule in `rector.php`:
+Register the rules in `rector.php`:
 
 ```php
-use Gamache\Rector\InjectRepositoryInsteadOfGetRepositoryRector;
+use Gamache\Rector\GamacheSetList;
 use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
-    ->withRules([
-        InjectRepositoryInsteadOfGetRepositoryRector::class,
-    ]);
+    ->withSets([GamacheSetList::CONVENTIONS]);
 ```
+
+`GamacheSetList::CONVENTIONS` bundles `InjectRepositoryInsteadOfGetRepositoryRector` plus the built-in `SortCallLikeNamedArgsRector` and `SortAttributeNamedArgsRector` (which reorder named arguments to match parameter declaration order). New gamache rules apply automatically when you `composer update`. Note `InjectRepositoryInsteadOfGetRepositoryRector` rewrites your constructors.
 
 See [docs/rector.md](docs/rector.md).
 

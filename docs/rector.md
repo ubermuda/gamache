@@ -1,18 +1,20 @@
-# Rector rule
+# Rector rules
 
-One Rector rule in the `Gamache\Rector` namespace.
+Custom Rector rules in the `Gamache\Rector` namespace.
 
-Register it in `rector.php`:
+## Recommended setup
+
+Enable all gamache Rector conventions in `rector.php` via the set list:
 
 ```php
-use Gamache\Rector\InjectRepositoryInsteadOfGetRepositoryRector;
+use Gamache\Rector\GamacheSetList;
 use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
-    ->withRules([
-        InjectRepositoryInsteadOfGetRepositoryRector::class,
-    ]);
+    ->withSets([GamacheSetList::CONVENTIONS]);
 ```
+
+`GamacheSetList::CONVENTIONS` bundles `InjectRepositoryInsteadOfGetRepositoryRector` plus the built-in `SortCallLikeNamedArgsRector` and `SortAttributeNamedArgsRector` (which reorder named arguments to match parameter declaration order). New gamache rules apply automatically when you `composer update`. Note `InjectRepositoryInsteadOfGetRepositoryRector` rewrites your constructors.
 
 ---
 
