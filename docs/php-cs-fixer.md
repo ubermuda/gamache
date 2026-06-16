@@ -17,7 +17,18 @@ return (new PhpCsFixer\Config())
     ]);
 ```
 
-Referencing `Fixers` instead of listing rules by hand means new gamache fixers and rule updates apply automatically when you `composer update`. `Fixers::rules()` includes the built-in `ordered_attributes` rule (alphabetical attribute ordering).
+Referencing `Fixers` instead of listing rules by hand means new gamache fixers and rule updates apply automatically when you `composer update`.
+
+`Fixers::rules()` enables, on top of the two custom fixers:
+
+| Rule | Config | Why |
+|---|---|---|
+| `Gamache/multiline_attribute` | `attributes: ['Route']`, `minimum_arguments: 3` | Expand `#[Route(...)]` with 3+ arguments to one per line |
+| `multiline_promoted_properties` | `true` | One promoted constructor property per line |
+| `php_unit_method_casing` | `snake_case` | Test methods read as sentences (overrides the `@Symfony` camelCase default) |
+| `ordered_attributes` | `true` | Alphabetical attribute ordering |
+
+Spread `...Fixers::rules()` *after* your base ruleset (`@Symfony`) so the snake_case override wins, and list any per-rule overrides after it.
 
 ---
 

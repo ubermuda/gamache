@@ -14,7 +14,13 @@ return RectorConfig::configure()
     ->withSets([GamacheSetList::CONVENTIONS]);
 ```
 
-`GamacheSetList::CONVENTIONS` bundles `InjectRepositoryInsteadOfGetRepositoryRector` plus the built-in `SortCallLikeNamedArgsRector` and `SortAttributeNamedArgsRector` (which reorder named arguments to match parameter declaration order). New gamache rules apply automatically when you `composer update`. Note `InjectRepositoryInsteadOfGetRepositoryRector` rewrites your constructors.
+`GamacheSetList::CONVENTIONS` bundles:
+
+- `InjectRepositoryInsteadOfGetRepositoryRector` (custom) — rewrites constructors to inject typed repositories
+- `SortCallLikeNamedArgsRector` and `SortAttributeNamedArgsRector` (built-in) — reorder named arguments to match parameter declaration order
+- `PropertyHookRector` (built-in, PHP 8.4) — converts eligible properties to property hooks
+
+New gamache rules apply automatically when you `composer update`. Note `InjectRepositoryInsteadOfGetRepositoryRector` and `PropertyHookRector` rewrite your code structure — run `vendor/bin/rector process --dry-run` after upgrading to review the diff.
 
 ---
 

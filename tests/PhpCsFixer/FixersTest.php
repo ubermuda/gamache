@@ -25,6 +25,17 @@ final class FixersTest extends TestCase
         self::assertSame(true, Fixers::rules()['ordered_attributes'] ?? null);
     }
 
+    public function test_rules_match_shared_project_defaults(): void
+    {
+        $rules = Fixers::rules();
+
+        $multilineAttribute = $rules['Gamache/multiline_attribute'] ?? null;
+        self::assertIsArray($multilineAttribute);
+        self::assertSame(3, $multilineAttribute['minimum_arguments']);
+        self::assertSame(true, $rules['multiline_promoted_properties'] ?? null);
+        self::assertSame(['case' => 'snake_case'], $rules['php_unit_method_casing'] ?? null);
+    }
+
     public function test_every_custom_rule_resolves_to_a_registered_fixer(): void
     {
         $names = array_map(

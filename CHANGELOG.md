@@ -15,14 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gamache rules apply automatically when you `composer update` — no config edit
   required.
   - PHP-CS-Fixer: `Gamache\PhpCsFixer\Fixers` — a collection of the custom
-    fixers plus `Fixers::rules()`, which now also enables the built-in
-    `ordered_attributes` rule (alphabetical attribute ordering).
+    fixers plus `Fixers::rules()`. Beyond the two custom fixers, the rule map
+    enables `multiline_promoted_properties`, `php_unit_method_casing`
+    (snake_case), `ordered_attributes` (alphabetical attribute ordering), and
+    sets `Gamache/multiline_attribute` to `minimum_arguments: 3`.
   - Rector: `Gamache\Rector\GamacheSetList::CONVENTIONS` — bundles
-    `InjectRepositoryInsteadOfGetRepositoryRector` plus the built-in
-    `SortCallLikeNamedArgsRector` and `SortAttributeNamedArgsRector`, which
-    reorder named arguments to match parameter declaration order.
+    `InjectRepositoryInsteadOfGetRepositoryRector`, the built-in
+    `SortCallLikeNamedArgsRector` and `SortAttributeNamedArgsRector` (reorder
+    named arguments to match parameter declaration order), and `PropertyHookRector`
+    (PHP 8.4 property hooks).
   - Twig-CS-Fixer: `Gamache\TwigCsFixer\GamacheStandard` — bundles all four
     gamache Twig rules.
+
+  These defaults match the conventions used across consuming projects, so those
+  projects can drop the matching inline rules from their own configs.
 
 ### Upgrade guide
 
@@ -41,15 +47,15 @@ to automatic rule updates on future `composer update`.
 -        new BlankLineBetweenAttributedParametersFixer(),
 -        new MultilineAttributeFixer(),
 -    ])
--    ->setRules([
--        'Gamache/blank_line_between_attributed_parameters' => true,
--        'Gamache/multiline_attribute' => ['attributes' => ['Route'], 'minimum_arguments' => 1],
--    ]);
 +    ->registerCustomFixers(new Fixers())
-+    ->setRules([
-+        '@Symfony' => true,
+     ->setRules([
+         '@Symfony' => true,
+-        'multiline_promoted_properties' => true,
+-        'Gamache/blank_line_between_attributed_parameters' => true,
+-        'Gamache/multiline_attribute' => ['attributes' => ['Route'], 'minimum_arguments' => 3],
+-        'php_unit_method_casing' => ['case' => 'snake_case'],
 +        ...Fixers::rules(),
-+    ]);
+     ]);
 ```
 
 Spread `...Fixers::rules()` after your own base ruleset (e.g. `@Symfony`); list
@@ -59,21 +65,30 @@ declaration alphabetically.
 
 #### Rector (`rector.php`)
 
+Keep your project-level `withPhpSets()`, `withPreparedSets()`, etc.; only the
+gamache rules move into the set. `PropertyHookRector` is now part of the set, so
+drop it from `withRules()` if you had it there.
+
 ```diff
 -use Gamache\Rector\InjectRepositoryInsteadOfGetRepositoryRector;
 +use Gamache\Rector\GamacheSetList;
  use Rector\Config\RectorConfig;
+-use Rector\Php84\Rector\Class_\PropertyHookRector;
 
  return RectorConfig::configure()
++    ->withSets([GamacheSetList::CONVENTIONS])
+     ->withPhpSets(php85: true)
 -    ->withRules([
 -        InjectRepositoryInsteadOfGetRepositoryRector::class,
+-        PropertyHookRector::class,
 -    ]);
-+    ->withSets([GamacheSetList::CONVENTIONS]);
++;
 ```
 
-The set adds two named-argument sorters. The first `rector process` after
-upgrading will reorder named arguments in calls and attributes to match
-declaration order, and `InjectRepositoryInsteadOfGetRepositoryRector` will
+The set adds two named-argument sorters and `PropertyHookRector`. The first
+`rector process` after upgrading will reorder named arguments in calls and
+attributes to match declaration order, and
+`InjectRepositoryInsteadOfGetRepositoryRector` will
 rewrite constructors to inject repositories. Run with `--dry-run` first to
 review the diff.
 

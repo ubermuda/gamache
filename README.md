@@ -164,7 +164,7 @@ return (new PhpCsFixer\Config())
     ]);
 ```
 
-Referencing `Fixers` instead of listing rules by hand means new gamache fixers and rule updates apply automatically when you `composer update`. `Fixers::rules()` includes the built-in `ordered_attributes` rule (alphabetical attribute ordering).
+Referencing `Fixers` instead of listing rules by hand means new gamache fixers and rule updates apply automatically when you `composer update`. Beyond the two custom fixers, `Fixers::rules()` enables `multiline_promoted_properties`, `php_unit_method_casing` (snake_case), `ordered_attributes` (alphabetical attribute ordering), and `Gamache/multiline_attribute` at `minimum_arguments: 3`. Spread it *after* `@Symfony` so its overrides win.
 
 See [docs/php-cs-fixer.md](docs/php-cs-fixer.md).
 
@@ -199,7 +199,7 @@ return RectorConfig::configure()
     ->withSets([GamacheSetList::CONVENTIONS]);
 ```
 
-`GamacheSetList::CONVENTIONS` bundles `InjectRepositoryInsteadOfGetRepositoryRector` plus the built-in `SortCallLikeNamedArgsRector` and `SortAttributeNamedArgsRector` (which reorder named arguments to match parameter declaration order). New gamache rules apply automatically when you `composer update`. Note `InjectRepositoryInsteadOfGetRepositoryRector` rewrites your constructors.
+`GamacheSetList::CONVENTIONS` bundles `InjectRepositoryInsteadOfGetRepositoryRector` (custom), the built-in `SortCallLikeNamedArgsRector` and `SortAttributeNamedArgsRector` (reorder named arguments to match parameter declaration order), and `PropertyHookRector` (PHP 8.4 property hooks). New gamache rules apply automatically when you `composer update`. `InjectRepositoryInsteadOfGetRepositoryRector` and `PropertyHookRector` rewrite code structure — run Rector with `--dry-run` after upgrading. See [docs/rector.md](docs/rector.md).
 
 See [docs/rector.md](docs/rector.md).
 

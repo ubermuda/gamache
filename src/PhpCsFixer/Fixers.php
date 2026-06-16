@@ -33,7 +33,9 @@ final class Fixers implements \IteratorAggregate
     {
         return [
             'Gamache/blank_line_between_attributed_parameters' => true,
-            'Gamache/multiline_attribute' => ['attributes' => ['Route'], 'minimum_arguments' => 1],
+            'Gamache/multiline_attribute' => ['attributes' => ['Route'], 'minimum_arguments' => 3],
+            'multiline_promoted_properties' => true,
+            'php_unit_method_casing' => ['case' => 'snake_case'],
             'ordered_attributes' => true,
         ];
     }
