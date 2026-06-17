@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`TranslationKeyRule`: `{% trans %}` blocks, `<style>`/`<script>` skipping, and
+  an `excludedPaths` option.**
+  - Text inside a `{% trans %}…{% endtrans %}` block (including the
+    `{% trans with {…} %}` variant) is now validated as a translation key rather
+    than flagged as raw text — so `{% trans %}some.key{% endtrans %}` passes while
+    `{% trans %}Welcome back{% endtrans %}` is flagged, mirroring how
+    `'Welcome back'|trans` is already handled.
+  - The textual content of `<style>` and `<script>` elements is skipped, so inline
+    CSS/JS is no longer reported as raw text.
+  - `new TranslationKeyRule(excludedPaths: ['*/admin/*'])` skips files whose path
+    matches any `fnmatch()` pattern — for exempting areas not yet translated.
+    `GamacheStandard` keeps the no-argument default (no exclusions).
+
 - **Per-tool convention presets (aggregates).** Each external tool now has a
   single gamache-owned aggregate you reference from your config, instead of
   registering each fixer/rule by hand. Referencing the aggregate means new
