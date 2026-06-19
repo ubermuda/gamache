@@ -1,0 +1,8 @@
+services:
+    # A string-keyed id whose class is an App\ service — still banned, since its
+    # constructor can be annotated with #[Autowire]. Prevents bypassing the rule
+    # by giving an App class a non-App id.
+    app.some_service:
+        class: App\SomeService
+        arguments:
+            $foo: '%env(FOO)%'

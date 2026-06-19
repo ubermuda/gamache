@@ -49,17 +49,29 @@ final class ServicesYamlCheck extends AbstractCheck
             );
         }
 
-        foreach ($services as $definition) {
+        foreach ($services as $id => $definition) {
             if (!is_array($definition)) {
                 continue;
             }
-            if (array_key_exists('arguments', $definition)) {
-                $this->violations[] = new Violation(
-                    'Explicit arguments: blocks are not allowed; use #[Autowire(env: \'...\')] on the constructor parameter instead', // @translation-check-ignore
-                    Severity::Error,
-                    $absPath,
-                );
+            if (!array_key_exists('arguments', $definition)) {
+                continue;
             }
+
+            // Third-party services (e.g. a bundle's class or a string-keyed id)
+            // cannot be configured with #[Autowire] attributes because you do not
+            // own their constructor, so an explicit arguments: block is the only
+            // mechanism available — exempt them. The ban only targets App\ classes,
+            // whose constructors you can annotate instead.
+            $class = $definition['class'] ?? $id;
+            if (!is_string($class) || !str_starts_with($class, 'App\\')) {
+                continue;
+            }
+
+            $this->violations[] = new Violation(
+                'Explicit arguments: blocks are not allowed for App\\ services; use #[Autowire(env: \'...\')] on the constructor parameter instead', // @translation-check-ignore
+                Severity::Error,
+                $absPath,
+            );
         }
     }
 }
