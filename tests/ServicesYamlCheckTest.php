@@ -50,6 +50,25 @@ final class ServicesYamlCheckTest extends TestCase
         self::assertNull($result->violations[0]->line);
     }
 
+    public function test_allows_arguments_block_on_third_party_services(): void
+    {
+        $check = new ServicesYamlCheck();
+        $check->run($this->fixtures.'/with_third_party_arguments/config/services.yaml');
+        $result = $check->getResult();
+        self::assertFalse($result->hasFailed());
+        self::assertEmpty($result->violations);
+    }
+
+    public function test_detects_arguments_block_on_app_class_with_non_app_id(): void
+    {
+        $check = new ServicesYamlCheck();
+        $check->run($this->fixtures.'/with_app_class_arguments/config/services.yaml');
+        $result = $check->getResult();
+        self::assertTrue($result->hasFailed());
+        self::assertCount(1, $result->violations);
+        self::assertStringContainsString('arguments', $result->violations[0]->message);
+    }
+
     public function test_returns_no_violations_when_file_absent(): void
     {
         $check = new ServicesYamlCheck();

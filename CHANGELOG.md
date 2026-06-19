@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`ServicesYamlCheck`: exempt third-party services from the `arguments:` ban.**
+  The ban on explicit `arguments:` blocks now applies only to services whose class
+  is in the `App\` namespace (the definition key, or its `class:` when set). You own
+  those constructors and can configure them with `#[Autowire]` attributes. Third-party
+  services — bundle classes or string-keyed ids — are exempt, since you cannot
+  annotate a constructor you do not own, making an explicit `arguments:` block the
+  only available mechanism (e.g. configuring a bundle middleware via an env var).
+
 ### Added
 
 - **`TranslationKeyRule`: `{% trans %}` blocks, `<style>`/`<script>` skipping, and

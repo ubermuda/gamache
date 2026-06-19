@@ -137,24 +137,36 @@ Prohibits legacy constructs in `config/services.yaml` in favor of PHP attributes
 | Construct | Message |
 |---|---|
 | `_instanceof:` block | `_instanceof blocks are not allowed; use #[AutoconfigureTag('app.tag')] on the interface instead` |
-| `arguments:` on a service | `Explicit arguments: blocks are not allowed; use #[Autowire(env: '...')] on the constructor parameter instead` |
+| `arguments:` on an `App\` service | `Explicit arguments: blocks are not allowed for App\ services; use #[Autowire(env: '...')] on the constructor parameter instead` |
 
-**Severity:** Error. **Options:** none. **Exemptions:** none.
+The `arguments:` ban only targets services whose class is in the `App\` namespace
+(either the definition key, or its `class:` if set). You own those constructors, so
+configure them with `#[Autowire]` attributes instead. **Third-party services are
+exempt** — you cannot annotate a constructor you do not own, so an explicit
+`arguments:` block is the only mechanism available to configure a bundle's class.
+
+**Severity:** Error. **Options:** none.
 
 ```yaml
-# BAD
+# BAD — App\ class, configure via attributes instead
 services:
     App\SomeService:
         arguments:
             $foo: '%env(FOO)%'
 
-# GOOD — keep services.yaml minimal, configure via attributes
+# GOOD — keep App\ services minimal, configure via attributes
 services:
     _defaults:
         autowire: true
         autoconfigure: true
     App\:
         resource: '../src/'
+
+# ALSO GOOD — third-party class you cannot annotate
+services:
+    Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware:
+        arguments:
+            $allowedHosts: '%env(csv:MCP_ALLOWED_HOSTS)%'
 ```
 
 ---

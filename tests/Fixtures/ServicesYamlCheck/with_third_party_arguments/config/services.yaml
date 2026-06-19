@@ -1,0 +1,19 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+
+    # A third-party class configured with explicit arguments. Its constructor
+    # cannot be annotated with #[Autowire], so this is allowed.
+    Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware:
+        arguments:
+            $allowedHosts: '%env(csv:MCP_ALLOWED_HOSTS)%'
+
+    # A string-keyed third-party service id with an explicit arguments block.
+    some_vendor.service:
+        class: Vendor\Some\Service
+        arguments:
+            $option: '%env(SOME_OPTION)%'
