@@ -101,9 +101,11 @@ Controllers must declare access control with `#[IsGranted]`, not enforce it impe
 - `new AccessDeniedHttpException(...)` (`Symfony\Component\HttpKernel\Exception`)
 - `new AccessDeniedException(...)` (`Symfony\Component\Security\Core\Exception`)
 
-> `AppController::__invoke() must not <call …/instantiate …>. Use #[IsGranted] with a Voter constant and subject. To exempt dynamic-subject controllers, add "access is enforced per-branch" to the class docblock.`
+> `AppController::__invoke() must not <call …/instantiate …>. Use #[IsGranted] with a Voter constant and subject. If the subject is only resolvable at runtime (e.g. from a query parameter), call denyAccessUnlessGranted() from a private helper method, not __invoke().`
 
-**Exemption:** when the access decision depends on runtime data and can't be expressed as an attribute, add `access is enforced per-branch` to the class docblock (or a comment on the class).
+An imperative deny in `__invoke()` almost always means the right **(subject, permission)** pair has not been found yet. The subject can be the most-specific entity the route already resolves — the Voter is free to walk from it to whatever the policy checks (e.g. `Comment` → `comment.version.document.owner`), so "the owning entity isn't a route parameter" is not a reason to go imperative.
+
+**There is no docblock escape hatch.** A class comment does **not** exempt a controller. The rule scans only the `__invoke()` body, so the supported form for a genuinely runtime-resolved subject (e.g. one available only as a *query* parameter) is to move the `denyAccessUnlessGranted()` call into a **private helper method** — that passes cleanly. In the rare case where an imperative deny inside `__invoke()` is truly unavoidable, suppress it with an explicit, reviewable `// @phpstan-ignore controller.denyAccessUnlessGranted (reason)` on the offending line.
 
 ```php
 // BAD
@@ -116,23 +118,25 @@ class DeleteProjectController extends AppController
     }
 }
 
-// GOOD
+// GOOD — declarative, subject resolved from the route
 #[IsGranted(ProjectVoter::DELETE, subject: 'project')]
 class DeleteProjectController extends AppController
 {
     public function __invoke(Project $project): Response { /* … */ }
 }
 
-// GOOD — exempted
-/**
- * access is enforced per-branch.
- */
-class BranchController extends AppController
+// GOOD — subject only available as a query parameter: deny from a private helper
+class MercureAuthorizeController extends AppController
 {
-    public function __invoke(string $branch): Response
+    public function __invoke(Request $request): Response
     {
-        $this->denyAccessUnlessGranted('branch_access', $branch);
+        $this->authorizeTopic($request);
         // …
+    }
+
+    private function authorizeTopic(Request $request): void
+    {
+        $this->denyAccessUnlessGranted(WorkspaceVoter::VIEW, $this->resolveFromQuery($request));
     }
 }
 ```

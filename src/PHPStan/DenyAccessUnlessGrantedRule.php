@@ -66,16 +66,6 @@ final readonly class DenyAccessUnlessGrantedRule implements Rule
             }
         }
 
-        // Exemption: class-level docblock or comment containing 'access is enforced per-branch'
-        $docComment = $node->getDocComment();
-        if (null !== $docComment && str_contains($docComment->getText(), 'access is enforced per-branch')) {
-            return [];
-        }
-        foreach ($node->getComments() as $comment) {
-            if (str_contains($comment->getText(), 'access is enforced per-branch')) {
-                return [];
-            }
-        }
         $invoke = array_find($node->getMethods(), fn ($method) => '__invoke' === $method->name->name);
 
         if (null === $invoke || null === $invoke->stmts) {
@@ -120,7 +110,7 @@ final readonly class DenyAccessUnlessGrantedRule implements Rule
             static fn (array $finding): RuleError => RuleErrorBuilder::message(
                 \sprintf('AppController::__invoke() must not %s. ', $finding[0])
                 .'Use #[IsGranted] with a Voter constant and subject. '
-                .'To exempt dynamic-subject controllers, add "access is enforced per-branch" to the class docblock.'
+                .'If the subject is only resolvable at runtime (e.g. from a query parameter), call denyAccessUnlessGranted() from a private helper method, not __invoke().'
             )
             ->identifier('controller.denyAccessUnlessGranted')
             ->line($finding[1])

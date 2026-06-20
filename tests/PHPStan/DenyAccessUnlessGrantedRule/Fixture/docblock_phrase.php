@@ -9,7 +9,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 /**
  * access is enforced per-branch.
  */
-class ExemptedController extends AppController
+class DocblockPhraseController extends AppController
 {
     public function __invoke(string $branch): Response
     {
