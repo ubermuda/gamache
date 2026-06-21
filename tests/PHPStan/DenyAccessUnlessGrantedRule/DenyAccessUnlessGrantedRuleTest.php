@@ -48,17 +48,15 @@ final class DenyAccessUnlessGrantedRuleTest extends RuleTestCase
             __DIR__.'/Fixture/violation.php',
         ], [
             [self::message('call $this->denyAccessUnlessGranted()'), 14],
-            [self::message('call $this->denyAccessUnlessGranted()'), 25],
-            [self::message('instantiate AccessDeniedHttpException'), 37],
-            [self::message('instantiate AccessDeniedException'), 48],
-            [self::message('call $this->createAccessDeniedException()'), 56],
+            [self::message('instantiate AccessDeniedHttpException'), 25],
+            [self::message('instantiate AccessDeniedException'), 36],
+            [self::message('call $this->createAccessDeniedException()'), 44],
         ]);
     }
 
     private static function message(string $construct): string
     {
         return \sprintf('AppController::__invoke() must not %s. ', $construct)
-            .'Use #[IsGranted] with a Voter constant and subject. '
-            .'If the subject is only resolvable at runtime (e.g. from a query parameter), call denyAccessUnlessGranted() from a private helper method, not __invoke().';
+            .'Use #[IsGranted] with a Voter constant and subject.';
     }
 }

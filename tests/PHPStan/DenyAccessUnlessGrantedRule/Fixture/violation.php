@@ -7,23 +7,11 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
-class ViolatingController extends AppController
+class SubjectDenyController extends AppController
 {
-    public function __invoke(): Response
+    public function __invoke(int $id): Response
     {
-        $this->denyAccessUnlessGranted('ROLE_ADMIN');
-
-        return new Response('ok');
-    }
-}
-
-class NestedViolatingController extends AppController
-{
-    public function __invoke(bool $flag): Response
-    {
-        if ($flag) {
-            $this->denyAccessUnlessGranted('ROLE_ADMIN');
-        }
+        $this->denyAccessUnlessGranted('edit', $id);
 
         return new Response('ok');
     }
