@@ -28,12 +28,17 @@ final class DenyAccessUnlessGrantedRuleTest extends RuleTestCase
         ], []);
     }
 
-    public function test_exempted_controller_passes(): void
+    public function test_docblock_phrase_does_not_exempt(): void
     {
+        // The old "access is enforced per-branch" docblock escape hatch was
+        // removed: a class comment no longer suppresses the rule.
         $this->analyse([
             __DIR__.'/../Fixtures/AppController.php',
-            __DIR__.'/Fixture/exempted.php',
-        ], []);
+            __DIR__.'/Fixture/docblock_phrase.php',
+        ], [
+            [self::message('call $this->denyAccessUnlessGranted()'), 16],
+            [self::message('instantiate AccessDeniedHttpException'), 19],
+        ]);
     }
 
     public function test_deny_access_in_invoke_is_reported(): void
@@ -43,17 +48,15 @@ final class DenyAccessUnlessGrantedRuleTest extends RuleTestCase
             __DIR__.'/Fixture/violation.php',
         ], [
             [self::message('call $this->denyAccessUnlessGranted()'), 14],
-            [self::message('call $this->denyAccessUnlessGranted()'), 25],
-            [self::message('instantiate AccessDeniedHttpException'), 37],
-            [self::message('instantiate AccessDeniedException'), 48],
-            [self::message('call $this->createAccessDeniedException()'), 56],
+            [self::message('instantiate AccessDeniedHttpException'), 25],
+            [self::message('instantiate AccessDeniedException'), 36],
+            [self::message('call $this->createAccessDeniedException()'), 44],
         ]);
     }
 
     private static function message(string $construct): string
     {
         return \sprintf('AppController::__invoke() must not %s. ', $construct)
-            .'Use #[IsGranted] with a Voter constant and subject. '
-            .'To exempt dynamic-subject controllers, add "access is enforced per-branch" to the class docblock.';
+            .'Use #[IsGranted] with a Voter constant and subject.';
     }
 }

@@ -96,44 +96,33 @@ class ListProjectsController extends AppController { /* … */ }
 
 Controllers must declare access control with `#[IsGranted]`, not enforce it imperatively inside `__invoke()`. The rule flags, anywhere in the `__invoke()` body:
 
-- `$this->denyAccessUnlessGranted(...)` calls
+- `$this->denyAccessUnlessGranted($attribute, $subject)` — but only when the call passes a **subject** (second argument) and `__invoke()` receives a route-resolved parameter (an entity or path argument — anything other than `Request`)
 - `$this->createAccessDeniedException(...)` calls
 - `new AccessDeniedHttpException(...)` (`Symfony\Component\HttpKernel\Exception`)
 - `new AccessDeniedException(...)` (`Symfony\Component\Security\Core\Exception`)
 
-> `AppController::__invoke() must not <call …/instantiate …>. Use #[IsGranted] with a Voter constant and subject. To exempt dynamic-subject controllers, add "access is enforced per-branch" to the class docblock.`
+> `AppController::__invoke() must not <call …/instantiate …>. Use #[IsGranted] with a Voter constant and subject.`
 
-**Exemption:** when the access decision depends on runtime data and can't be expressed as an attribute, add `access is enforced per-branch` to the class docblock (or a comment on the class).
+An imperative deny over a route-resolved subject almost always means the right **(subject, permission)** pair has not been found yet. The subject can be the most-specific entity the route already resolves — the Voter is free to walk from it to whatever the policy checks (e.g. `Comment` → `comment.version.document.owner`), so "the owning entity isn't a route parameter" is not a reason to go imperative.
+
+**No escape hatches.** A class docblock or comment does **not** exempt a controller, and there is no sanctioned suppression. `createAccessDeniedException()` and `new AccessDenied*Exception()` are always flagged. The only calls the rule leaves alone are the ones where there is genuinely no subject to declare: a role-only check with no subject argument (`denyAccessUnlessGranted('ROLE_ADMIN')`), or a subject that is only resolvable at runtime because `__invoke()` has no route-resolved parameter.
 
 ```php
-// BAD
+// BAD — subject resolved from the route, denied imperatively
 class DeleteProjectController extends AppController
 {
     public function __invoke(Project $project): Response
     {
-        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+        $this->denyAccessUnlessGranted(ProjectVoter::DELETE, $project);
         // …
     }
 }
 
-// GOOD
+// GOOD — declarative, subject resolved from the route
 #[IsGranted(ProjectVoter::DELETE, subject: 'project')]
 class DeleteProjectController extends AppController
 {
     public function __invoke(Project $project): Response { /* … */ }
-}
-
-// GOOD — exempted
-/**
- * access is enforced per-branch.
- */
-class BranchController extends AppController
-{
-    public function __invoke(string $branch): Response
-    {
-        $this->denyAccessUnlessGranted('branch_access', $branch);
-        // …
-    }
 }
 ```
 

@@ -18,11 +18,9 @@ use PHPStan\Rules\RuleErrorBuilder;
  */
 final readonly class DenyAccessUnlessGrantedRule implements Rule
 {
-    private const array FORBIDDEN_METHODS = ['denyAccessUnlessGranted', 'createAccessDeniedException'];
-
     private const array ACCESS_DENIED_EXCEPTIONS = [
-        'Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException' => 'AccessDeniedHttpException',
-        'Symfony\Component\Security\Core\Exception\AccessDeniedException' => 'AccessDeniedException',
+        'Symfony\\Component\\HttpKernel\\Exception\\AccessDeniedHttpException' => 'AccessDeniedHttpException',
+        'Symfony\\Component\\Security\\Core\\Exception\\AccessDeniedException' => 'AccessDeniedException',
     ];
 
     public function __construct(
@@ -66,21 +64,13 @@ final readonly class DenyAccessUnlessGrantedRule implements Rule
             }
         }
 
-        // Exemption: class-level docblock or comment containing 'access is enforced per-branch'
-        $docComment = $node->getDocComment();
-        if (null !== $docComment && str_contains($docComment->getText(), 'access is enforced per-branch')) {
-            return [];
-        }
-        foreach ($node->getComments() as $comment) {
-            if (str_contains($comment->getText(), 'access is enforced per-branch')) {
-                return [];
-            }
-        }
         $invoke = array_find($node->getMethods(), fn ($method) => '__invoke' === $method->name->name);
 
         if (null === $invoke || null === $invoke->stmts) {
             return [];
         }
+
+        $hasRouteParameter = $this->invokeHasRouteParameter($invoke, $scope);
 
         // Find all manual access-deny constructs anywhere in __invoke body
         $finder = new NodeFinder();
@@ -92,12 +82,32 @@ final readonly class DenyAccessUnlessGrantedRule implements Rule
         $calls = $finder->findInstanceOf($invoke->stmts, Node\Expr\MethodCall::class);
         foreach ($calls as $call) {
             if (
-                $call->var instanceof Node\Expr\Variable
-                && 'this' === $call->var->name
-                && $call->name instanceof Node\Identifier
-                && \in_array($call->name->name, self::FORBIDDEN_METHODS, true)
+                !$call->var instanceof Node\Expr\Variable
+                || 'this' !== $call->var->name
+                || !$call->name instanceof Node\Identifier
             ) {
-                $findings[] = [\sprintf('call $this->%s()', $call->name->name), $call->getLine()];
+                continue;
+            }
+
+            $method = $call->name->name;
+
+            // An access-denied exception built imperatively is always a violation.
+            if ('createAccessDeniedException' === $method) {
+                $findings[] = [\sprintf('call $this->%s()', $method), $call->getLine()];
+
+                continue;
+            }
+
+            // denyAccessUnlessGranted() only needs to become declarative (#[IsGranted])
+            // when it carries a subject (2nd argument) AND __invoke exposes a route-resolved
+            // parameter to hang that subject on. Without a subject, or when the subject is
+            // only resolvable at runtime (no route parameter), the rule does not apply.
+            if (
+                'denyAccessUnlessGranted' === $method
+                && \count($call->getArgs()) >= 2
+                && $hasRouteParameter
+            ) {
+                $findings[] = [\sprintf('call $this->%s()', $method), $call->getLine()];
             }
         }
 
@@ -119,13 +129,33 @@ final readonly class DenyAccessUnlessGrantedRule implements Rule
         return array_map(
             static fn (array $finding): RuleError => RuleErrorBuilder::message(
                 \sprintf('AppController::__invoke() must not %s. ', $finding[0])
-                .'Use #[IsGranted] with a Voter constant and subject. '
-                .'To exempt dynamic-subject controllers, add "access is enforced per-branch" to the class docblock.'
+                .'Use #[IsGranted] with a Voter constant and subject.'
             )
             ->identifier('controller.denyAccessUnlessGranted')
             ->line($finding[1])
             ->build(),
             $findings,
         );
+    }
+
+    private function invokeHasRouteParameter(Node\Stmt\ClassMethod $invoke, Scope $scope): bool
+    {
+        foreach ($invoke->params as $param) {
+            $type = $param->type;
+
+            if ($type instanceof Node\NullableType) {
+                $type = $type->type;
+            }
+
+            // A bare Request is not a route-resolved subject; any other parameter
+            // (entity, route scalar, untyped) counts as one.
+            if ($type instanceof Node\Name && 'Symfony\\Component\\HttpFoundation\\Request' === $scope->resolveName($type)) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 }
