@@ -8,6 +8,7 @@ use Gamache\TwigCsFixer\CsrfTokenValueRule;
 use Gamache\TwigCsFixer\GamacheStandard;
 use Gamache\TwigCsFixer\IncludeOnlyRule;
 use Gamache\TwigCsFixer\InlineSvgRule;
+use Gamache\TwigCsFixer\ModuleTemplateNamespaceRule;
 use Gamache\TwigCsFixer\TranslationKeyRule;
 use PHPUnit\Framework\TestCase;
 
@@ -23,6 +24,7 @@ final class GamacheStandardTest extends TestCase
             CsrfTokenValueRule::class,
             IncludeOnlyRule::class,
             InlineSvgRule::class,
+            ModuleTemplateNamespaceRule::class,
             TranslationKeyRule::class,
         ], $classes);
     }

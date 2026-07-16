@@ -22,6 +22,7 @@ final class GamacheStandard implements StandardInterface
             new CsrfTokenValueRule(),
             new IncludeOnlyRule(),
             new InlineSvgRule(),
+            new ModuleTemplateNamespaceRule(),
             new TranslationKeyRule(),
         ];
     }
