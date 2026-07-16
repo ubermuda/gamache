@@ -1,0 +1,2 @@
+{% trans with {'%name%': user.name} %}greeting{% endtrans %}
+{{ 'greeting'|trans({'%name%': user.name|e}) }}
