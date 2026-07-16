@@ -16,6 +16,8 @@ use PHPStan\Rules\RuleErrorBuilder;
  */
 final readonly class BuildFormConstraintsRule implements Rule
 {
+    private const array BUILDER_METHODS = ['add', 'create'];
+
     public function getNodeType(): string
     {
         return Class_::class;
@@ -26,9 +28,6 @@ final readonly class BuildFormConstraintsRule implements Rule
     {
         \assert($node instanceof Class_);
 
-        if (!$this->hasDataClass($node)) {
-            return [];
-        }
         $buildForm = array_find($node->getMethods(), fn ($method) => 'buildForm' === $method->name->name);
 
         if (null === $buildForm) {
@@ -39,45 +38,6 @@ final readonly class BuildFormConstraintsRule implements Rule
         $this->walkNodes($buildForm->stmts ?? [], $errors);
 
         return $errors;
-    }
-
-    private function hasDataClass(Class_ $class): bool
-    {
-        foreach ($class->getMethods() as $method) {
-            if ('configureOptions' !== $method->name->name) {
-                continue;
-            }
-
-            return $this->methodContainsDataClassKey($method);
-        }
-
-        return false;
-    }
-
-    private function methodContainsDataClassKey(Node $node): bool
-    {
-        if (
-            $node instanceof Node\Expr\ArrayItem
-            && $node->key instanceof Node\Scalar\String_
-            && 'data_class' === $node->key->value
-        ) {
-            return true;
-        }
-
-        foreach ($node->getSubNodeNames() as $subName) {
-            $sub = $node->{$subName};
-            if ($sub instanceof Node && $this->methodContainsDataClassKey($sub)) {
-                return true;
-            } elseif (\is_array($sub)) {
-                foreach ($sub as $child) {
-                    if ($child instanceof Node && $this->methodContainsDataClassKey($child)) {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -95,18 +55,15 @@ final readonly class BuildFormConstraintsRule implements Rule
     private function walkNode(Node $node, array &$errors): void
     {
         if (
-            $node instanceof Node\Expr\ArrayItem
-            && $node->key instanceof Node\Scalar\String_
-            && 'constraints' === $node->key->value
+            $node instanceof Node\Expr\MethodCall
+            && $node->name instanceof Node\Identifier
+            && \in_array($node->name->name, self::BUILDER_METHODS, true)
         ) {
-            $errors[] = RuleErrorBuilder::message(
-                'Form constraints must be declared on the DTO class, not inline in buildForm().',
-            )
-            ->identifier('form.inlineConstraints')
-            ->line($node->getLine())
-            ->build();
-
-            return; // do not recurse into this item's value
+            foreach ($node->getArgs() as $arg) {
+                if ($arg->value instanceof Node\Expr\Array_) {
+                    $this->reportConstraintsKeys($arg->value, $errors);
+                }
+            }
         }
 
         foreach ($node->getSubNodeNames() as $subName) {
@@ -120,6 +77,43 @@ final readonly class BuildFormConstraintsRule implements Rule
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Reports 'constraints' keys anywhere inside a builder options array —
+     * including nested option arrays such as CollectionType's 'entry_options'.
+     *
+     * @param list<RuleError> &$errors
+     */
+    private function reportConstraintsKeys(Node $node, array &$errors): void
+    {
+        if (
+            $node instanceof Node\Expr\ArrayItem
+            && $node->key instanceof Node\Scalar\String_
+            && 'constraints' === $node->key->value
+        ) {
+            $errors[] = RuleErrorBuilder::message(
+                'Form constraints must be declared on the DTO class (introduce a Request DTO for unmapped forms), not inline in buildForm().',
+            )
+            ->identifier('form.inlineConstraints')
+            ->line($node->getLine())
+            ->build();
+
+            return; // do not recurse into this item's value
+        }
+
+        if ($node instanceof Node\Expr\Array_) {
+            foreach ($node->items as $item) {
+                $this->reportConstraintsKeys($item, $errors);
+            }
+
+            return;
+        }
+
+        if ($node instanceof Node\Expr\ArrayItem && $node->value instanceof Node\Expr\Array_) {
+            // Nested option arrays (e.g. 'entry_options' => [...]) carry constraints too.
+            $this->reportConstraintsKeys($node->value, $errors);
         }
     }
 }
