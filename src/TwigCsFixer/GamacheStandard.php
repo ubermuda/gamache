@@ -24,6 +24,7 @@ final class GamacheStandard implements StandardInterface
             new InlineSvgRule(),
             new ModuleTemplateNamespaceRule(),
             new TranslationKeyRule(),
+            new TransPlaceholderEscapeRule(),
         ];
     }
 }

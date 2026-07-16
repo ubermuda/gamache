@@ -10,6 +10,7 @@ use Gamache\TwigCsFixer\IncludeOnlyRule;
 use Gamache\TwigCsFixer\InlineSvgRule;
 use Gamache\TwigCsFixer\ModuleTemplateNamespaceRule;
 use Gamache\TwigCsFixer\TranslationKeyRule;
+use Gamache\TwigCsFixer\TransPlaceholderEscapeRule;
 use PHPUnit\Framework\TestCase;
 
 final class GamacheStandardTest extends TestCase
@@ -26,6 +27,7 @@ final class GamacheStandardTest extends TestCase
             InlineSvgRule::class,
             ModuleTemplateNamespaceRule::class,
             TranslationKeyRule::class,
+            TransPlaceholderEscapeRule::class,
         ], $classes);
     }
 }

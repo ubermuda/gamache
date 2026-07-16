@@ -1,0 +1,9 @@
+{% trans with {'%name%': 'Bob'} %}greeting{% endtrans %}
+{% trans with {'%count%': 5} from 'app' %}items{% endtrans %}
+{% trans with {'%name%': user.name|e} %}greeting{% endtrans %}
+{% trans with vars %}greeting{% endtrans %}
+{% trans %}plain{% endtrans %}
+{{ 'greeting'|trans({'%name%': user.name}) }}
+{{ 'greeting'|trans }}
+{% set message = 'greeting'|trans({'%name%': user.name|e}) %}
+{{ 'legal.blurb'|trans({'%html%': snippet|e})|raw }}
