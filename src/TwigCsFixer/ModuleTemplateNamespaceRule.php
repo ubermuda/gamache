@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Gamache\TwigCsFixer;
 
-use TwigCsFixer\Rules\AbstractRule;
+use TwigCsFixer\Rules\AbstractFixableRule;
 use TwigCsFixer\Token\Token;
 use TwigCsFixer\Token\Tokens;
 
@@ -17,7 +17,13 @@ use TwigCsFixer\Token\Tokens;
  * `Module/<PascalCase>/...` — so templates in repos without that layout never
  * match.
  */
-final class ModuleTemplateNamespaceRule extends AbstractRule
+/*
+ * Extends AbstractFixableRule (despite reporting non-fixable errors): under
+ * twig-cs-fixer 4.x, non-fixable rules are dropped from the ruleset unless
+ * the consumer opts in via Config::allowNonFixableRules(), which would also
+ * unleash the Symfony standard's non-fixable rules.
+ */
+final class ModuleTemplateNamespaceRule extends AbstractFixableRule
 {
     private const array TEMPLATE_TAGS = ['extends', 'include', 'embed', 'from', 'import', 'use'];
 
