@@ -113,3 +113,33 @@ All displayable text must go through the translation system. The rule reports tw
 ```
 
 **Options:** none — the key pattern is fixed.
+
+---
+
+## TransPlaceholderEscapeRule
+
+The `{% trans with %}` **tag** bypasses Twig autoescaping, so non-literal placeholder values must be escaped with `|e`. The `|trans` **filter** is the opposite: its output is autoescaped, so `|e` on a placeholder double-escapes (apostrophes render as `&#039;`).
+
+Two checks, applied to `*.html.twig` templates only — plain-text templates (emails, chat messages) have autoescaping off, and `|e` there would corrupt the output with HTML entities:
+
+- a non-literal placeholder value in a literal `{% trans with {...} %}` hash without `|e`/`|escape` is flagged. String and number literals pass; a non-literal hash (`{% trans with vars %}`) cannot be inspected statically and is skipped.
+- `|e`/`|escape` inside a `|trans({...})` argument is flagged, but only when the expression is rendered directly in a `{{ ... }}` output — `{% set %}` assignments and `|raw` pipelines keep their pre-escaping, since there the manual escape *is* the protection.
+
+Numeric variables (e.g. a `%count%`) in a tag hash are flagged too — adding `|e` is harmless, and a deterministic rule beats a fuzzy "user-ish variable" heuristic. Suppress a guaranteed-safe value with `{# twig-cs-fixer-disable-next-line TransPlaceholderEscape #}`.
+
+> `Placeholder %name% in a {% trans with %} tag must be escaped with |e — the trans tag bypasses autoescaping.`
+> `Placeholder passed to the |trans filter must not use |e — the filter output is autoescaped, so this double-escapes.`
+
+```twig
+{# BAD — tag placeholders are not autoescaped #}
+{% trans with {'%name%': user.name} %}greeting{% endtrans %}
+
+{# GOOD #}
+{% trans with {'%name%': user.name|e} %}greeting{% endtrans %}
+
+{# BAD — filter output is autoescaped; |e double-escapes #}
+{{ 'greeting'|trans({'%name%': user.name|e}) }}
+
+{# GOOD #}
+{{ 'greeting'|trans({'%name%': user.name}) }}
+```
