@@ -1,6 +1,6 @@
 # PHPStan rules
 
-Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 28 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
+Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 29 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
 
 Every error carries an identifier, so you can opt out of a single rule with PHPStan's `ignoreErrors`:
 
@@ -22,7 +22,7 @@ All rules live in the `Gamache\PHPStan` namespace.
 **Entities & migrations:** [EntityAsymmetricVisibilityRule](#entityasymmetricvisibilityrule) · [MigrationDescriptionRule](#migrationdescriptionrule) · [RepositoryParameterNameRule](#repositoryparameternamerule)
 **Security:** [VoterNotReadonlyRule](#voternotreadonlyrule)
 **Translations:** [TranslationCallSiteRule](#translationcallsiterule) · [TranslationAttributeRule](#translationattributerule)
-**Misc:** [EnumKebabCaseRule](#enumkebabcaserule)
+**Misc:** [EnumKebabCaseRule](#enumkebabcaserule) · [PassThroughHelperRule](#passthroughhelperrule)
 
 ---
 
@@ -761,5 +761,56 @@ enum Status: string
 enum Status: string
 {
     case InProgress = 'in-progress';
+}
+```
+
+---
+
+## PassThroughHelperRule
+
+**Identifier:** `method.passThroughHelper`
+
+A `private`/`protected` method whose entire body is a single call on one of the class's properties, with only trivially-forwardable arguments, adds indirection with no logic — inline the call at its call sites.
+
+The discriminator is "does the body compute anything?", so the facade shape is flagged regardless of cosmetics:
+
+- the receiver may be any chain rooted in `$this` — property fetches (`$this->a->b`), accessor calls (`$this->service->inner()`), or nothing at all: a bare `$this->siblingMethod(...)` alias is flagged too;
+- arguments (of every call in the chain) may be the method's parameters in any order (reordered, dropped), property fetches (`$this->x`), named arguments, or a spread of a parameter (`...$items`) — every one is available verbatim at the call site, so inlining is a copy of the body.
+
+Not flagged (the body adds something):
+
+- any expression in **argument position** — calls (`build($this->config->defaults())`), arithmetic, concatenation, array literals, closures — is argument shaping;
+- **literal/constant arguments** — binding a value is partial application and names a variant (`renderCompact()` vs `render(true)`);
+- multi-statement bodies, conditionals, `public` methods (a deliberate API surface), static helpers, by-ref parameters;
+- a `protected` method in a class that `extends` a parent: it may override or implement a parent contract, and a contract method cannot be inlined.
+
+> `Method ChecklistPanelController::buildMatrix() is a one-liner pass-through to $this->checklistMatrixBuilder->build() — inline the call at its call sites.`
+
+```php
+// BAD — pure forwarding, no logic
+private function buildMatrix(array $items): array
+{
+    return $this->checklistMatrixBuilder->build($items);
+}
+
+// BAD — reordering, property arguments, accessor chains, sibling aliases:
+// still no logic
+private function notify(string $subject): void
+{
+    $this->notifier->send($this->recipient, $subject);
+}
+
+private function voter(): ChecklistVoter
+{
+    return $this->voterWithoutRsvp();
+}
+
+// GOOD — inline at the call site instead
+$matrix = $this->checklistMatrixBuilder->build($items);
+
+// Not flagged — the helper shapes its argument (real logic)
+private function buildMatrix(array $items): array
+{
+    return $this->checklistMatrixBuilder->build(array_values($items));
 }
 ```

@@ -203,3 +203,7 @@ services:
         class: Gamache\PHPStan\MessengerHandlerNamespaceRule
         tags:
             - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\PassThroughHelperRule
+        tags:
+            - phpstan.rules.rule
