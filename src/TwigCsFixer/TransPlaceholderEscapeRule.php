@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Gamache\TwigCsFixer;
 
-use TwigCsFixer\Rules\AbstractRule;
+use TwigCsFixer\Rules\AbstractFixableRule;
 use TwigCsFixer\Token\Token;
 use TwigCsFixer\Token\Tokens;
 
@@ -27,7 +27,13 @@ use TwigCsFixer\Token\Tokens;
  * False positives (e.g. a placeholder that is guaranteed HTML-safe) can be
  * suppressed with {# twig-cs-fixer-disable-next-line TransPlaceholderEscape #}.
  */
-final class TransPlaceholderEscapeRule extends AbstractRule
+/*
+ * Extends AbstractFixableRule (despite reporting non-fixable errors): under
+ * twig-cs-fixer 4.x, non-fixable rules are dropped from the ruleset unless
+ * the consumer opts in via Config::allowNonFixableRules(), which would also
+ * unleash the Symfony standard's non-fixable rules.
+ */
+final class TransPlaceholderEscapeRule extends AbstractFixableRule
 {
     private const array WHITESPACE = [Token::WHITESPACE_TYPE, Token::TAB_TYPE, Token::EOL_TYPE];
     private const array ESCAPE_FILTERS = ['e', 'escape'];
