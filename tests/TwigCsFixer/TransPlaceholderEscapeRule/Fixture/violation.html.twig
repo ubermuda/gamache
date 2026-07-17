@@ -1,0 +1,3 @@
+{% trans with {'%name%': user.name} %}greeting{% endtrans %}
+{% trans with {'%safe%': 'ok', '%bad%': event.title} %}x{% endtrans %}
+{{ 'greeting'|trans({'%name%': user.name|e}) }}

@@ -9,7 +9,7 @@ Gamache packages a set of opinionated conventions for Symfony applications and e
 | `gamache` CLI | 11 project-level checks (config files, templates, translations, …) | [docs/checks.md](docs/checks.md) |
 | PHPStan | 28 rules for controllers, APIs, CQRS commands, forms, templates, routes, entities, translations, security | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
 | PHP-CS-Fixer | 2 custom fixers for attribute formatting | [docs/php-cs-fixer.md](docs/php-cs-fixer.md) |
-| Twig-CS-Fixer | 5 custom rules for templates | [docs/twig-cs-fixer.md](docs/twig-cs-fixer.md) |
+| Twig-CS-Fixer | 6 custom rules for templates | [docs/twig-cs-fixer.md](docs/twig-cs-fixer.md) |
 | Rector | 1 custom rule + 2 built-in rules for repository injection and argument ordering | [docs/rector.md](docs/rector.md) |
 
 Each surface is independent — adopt one, several, or all of them.
