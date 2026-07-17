@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ApiRouteConsistencyRule` + `ApiControllerInputBindingRule`: enforce JSON API conventions.**
+  `ApiRouteConsistencyRule` (`route.apiConsistency`) requires a route's `/api/` path,
+  `api_` name, and `\Controller\Api\` namespace to agree — catching misplaced
+  controllers and mis-prefixed names. `ApiControllerInputBindingRule`
+  (`controller.apiInputBinding`) forbids Symfony forms and raw request-body parsing in
+  `\Controller\Api\` controllers, which must bind input via `#[MapRequestPayload]`.
+- **`PageTitleBrandNameCheck`: keep the brand out of page-title translation values.**
+  Flags any `*.page.title` `<target>` that contains the brand (read from the same
+  file's `app.name` target, per locale) or a ` — ` separator — the brand belongs in
+  the template, composed as `{{ 'x.page.title'|trans }} — {{ 'app.name'|trans }}`.
 - **`TranslationKeyRule`: `{% trans %}` blocks, `<style>`/`<script>` skipping, and
   an `excludedPaths` option.**
   - Text inside a `{% trans %}…{% endtrans %}` block (including the
