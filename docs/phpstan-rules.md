@@ -423,9 +423,11 @@ final readonly class ProvisionWorkspaceHandler
 
 **Identifier:** `form.inlineConstraints`
 
-When a form type has a `data_class`, validation belongs on the DTO (as Validator attributes), not inline in `buildForm()`. The rule flags any `'constraints'` array key inside `buildForm()` of a form type that configures a `data_class`.
+Validation belongs on a DTO (as Validator attributes), not inline in `buildForm()` — whether or not the form type configures a `data_class`. An unmapped form that needs validation should introduce a `Request` DTO instead; forms with nothing to validate (CSRF-only, simple search forms) are unaffected.
 
-> `Form constraints must be declared on the DTO class, not inline in buildForm().`
+The rule flags a `'constraints'` array key inside an options array passed to `$builder->add()` or `$builder->create()`, including nested option arrays such as `CollectionType`'s `entry_options`. A `'constraints'` key anywhere else in `buildForm()` (view variables, helper-call arguments) is ignored.
+
+> `Form constraints must be declared on the DTO class (introduce a Request DTO for unmapped forms), not inline in buildForm().`
 
 ```php
 // BAD
