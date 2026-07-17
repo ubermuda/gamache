@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Gamache\TwigCsFixer;
 
-use TwigCsFixer\Rules\AbstractRule;
+use TwigCsFixer\Rules\AbstractFixableRule;
 use TwigCsFixer\Token\Token;
 use TwigCsFixer\Token\Tokens;
 
@@ -20,7 +20,14 @@ use TwigCsFixer\Token\Tokens;
  * always fails CSRF validation in production while tests pass (CSRF is disabled
  * in the test environment).
  */
-final class CsrfTokenValueRule extends AbstractRule
+/*
+ * Extends AbstractFixableRule (despite reporting non-fixable errors) because
+ * twig-cs-fixer 4.x drops non-fixable rules from the ruleset unless the
+ * consumer opts in via Config::allowNonFixableRules() — which also unleashes
+ * the Symfony standard's non-fixable rules. Matching IncludeOnlyRule's pattern
+ * keeps this rule active under the default consumer config.
+ */
+final class CsrfTokenValueRule extends AbstractFixableRule
 {
     private const array WHITESPACE_TOKEN_TYPES = [
         Token::WHITESPACE_TYPE,
