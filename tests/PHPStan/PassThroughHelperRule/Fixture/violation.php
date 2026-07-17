@@ -62,6 +62,21 @@ class WithPassThroughHelpers
     {
         return $this->lazy->inner->build($items);
     }
+
+    private function callsAccessorInChain(array $items): array
+    {
+        return $this->matrixBuilder->inner()->build($items);
+    }
+
+    private function delegatesToSibling(array $items): array
+    {
+        return $this->reshape($items);
+    }
+
+    private function reshape(array $items): array
+    {
+        return $this->matrixBuilder->build(array_values($items));
+    }
 }
 
 class PassThroughMatrixBuilder
@@ -82,5 +97,10 @@ class PassThroughMatrixBuilder
 
     public function pair(string $first, string $second): void
     {
+    }
+
+    public function inner(): self
+    {
+        return $this;
     }
 }

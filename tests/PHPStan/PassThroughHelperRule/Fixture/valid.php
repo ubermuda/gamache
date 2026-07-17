@@ -58,16 +58,10 @@ class ValidPassThroughHelpers extends ValidPassThroughParent
         return $this->service->build($items);
     }
 
-    private function callsAccessorInChain(array $items): array
+    private function shapesArgumentViaAccessor(): array
     {
-        // A method call in the receiver chain is logic, not a static path.
-        return $this->service->inner()->build($items);
-    }
-
-    private function delegatesToSiblingMethod(array $items): array
-    {
-        // A bare $this->method() call is sibling delegation, not a dependency facade.
-        return $this->reshapesArgument($items);
+        // A call in ARGUMENT position transforms the input — argument shaping.
+        return $this->service->build($this->service->defaults());
     }
 
     private static function staticHelper(ValidPassThroughService $service, array $items): array
@@ -95,5 +89,10 @@ class ValidPassThroughService
     public function inner(): self
     {
         return $this;
+    }
+
+    public function defaults(): array
+    {
+        return [];
     }
 }

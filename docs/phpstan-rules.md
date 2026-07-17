@@ -774,14 +774,14 @@ A `private`/`protected` method whose entire body is a single call on one of the 
 
 The discriminator is "does the body compute anything?", so the facade shape is flagged regardless of cosmetics:
 
-- the receiver may be any `$this->prop` (promoted or not), including property-fetch chains (`$this->a->b`);
-- arguments may be the method's parameters in any order (reordered, dropped), property fetches (`$this->x`), named arguments, or a spread of a parameter (`...$items`) — every one is available verbatim at the call site, so inlining is a copy of the body.
+- the receiver may be any chain rooted in `$this` — property fetches (`$this->a->b`), accessor calls (`$this->service->inner()`), or nothing at all: a bare `$this->siblingMethod(...)` alias is flagged too;
+- arguments (of every call in the chain) may be the method's parameters in any order (reordered, dropped), property fetches (`$this->x`), named arguments, or a spread of a parameter (`...$items`) — every one is available verbatim at the call site, so inlining is a copy of the body.
 
 Not flagged (the body adds something):
 
-- any **expression argument** — calls, arithmetic, concatenation, array literals, closures — is argument shaping;
+- any expression in **argument position** — calls (`build($this->config->defaults())`), arithmetic, concatenation, array literals, closures — is argument shaping;
 - **literal/constant arguments** — binding a value is partial application and names a variant (`renderCompact()` vs `render(true)`);
-- multi-statement bodies, conditionals, `public` methods (a deliberate API surface), static helpers, by-ref parameters, method calls in the receiver chain (`$this->a->getB()->…`);
+- multi-statement bodies, conditionals, `public` methods (a deliberate API surface), static helpers, by-ref parameters;
 - a `protected` method in a class that `extends` a parent: it may override or implement a parent contract, and a contract method cannot be inlined.
 
 > `Method ChecklistPanelController::buildMatrix() is a one-liner pass-through to $this->checklistMatrixBuilder->build() — inline the call at its call sites.`
@@ -793,10 +793,16 @@ private function buildMatrix(array $items): array
     return $this->checklistMatrixBuilder->build($items);
 }
 
-// BAD — reordering, property arguments, variadic spread: still no logic
+// BAD — reordering, property arguments, accessor chains, sibling aliases:
+// still no logic
 private function notify(string $subject): void
 {
     $this->notifier->send($this->recipient, $subject);
+}
+
+private function voter(): ChecklistVoter
+{
+    return $this->voterWithoutRsvp();
 }
 
 // GOOD — inline at the call site instead
