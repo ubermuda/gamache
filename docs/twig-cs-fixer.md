@@ -1,6 +1,6 @@
 # Twig-CS-Fixer rules
 
-Four custom rules in the `Gamache\TwigCsFixer` namespace for [twig-cs-fixer](https://github.com/VincentLanglet/Twig-CS-Fixer). They report violations; none rewrites your templates.
+Custom rules in the `Gamache\TwigCsFixer` namespace for [twig-cs-fixer](https://github.com/VincentLanglet/Twig-CS-Fixer) (3.x and 4.x). They report violations; none rewrites your templates.
 
 ## Recommended setup
 
@@ -68,6 +68,26 @@ Prohibits inline `<svg>` elements. Use the Symfony UX Icon component instead, wh
 
 {# GOOD #}
 <twig:UX:Icon name="lucide:check" class="w-4 h-4" />
+```
+
+---
+
+## ModuleTemplateNamespaceRule
+
+Template paths under the module template root must be referenced through their Twig namespace, not as plain `Module/<Module>/...` paths.
+
+Checks string literals in `{% extends %}`, `{% include %}`, `{% embed %}`, `{% from %}`, `{% import %}`, and `{% use %}` tags. The match is conservative — `Module/` followed by a PascalCase segment — so templates in repos without that layout never match. The `{{ include(...) }}` *function* form is not covered. The PHP-side counterpart for `render()` / `TemplatedEmail` calls is the PHPStan rule of the same name (see [docs/phpstan-rules.md](phpstan-rules.md#moduletemplatenamespacerule)).
+
+> `Template "Module/Event/show.html.twig" must be referenced through its Twig namespace: "@Event/show.html.twig".`
+
+```twig
+{# BAD #}
+{% extends 'Module/Event/show.html.twig' %}
+{% include 'Module/Rsvp/_card.html.twig' only %}
+
+{# GOOD #}
+{% extends '@Event/show.html.twig' %}
+{% include '@Rsvp/_card.html.twig' only %}
 ```
 
 ---

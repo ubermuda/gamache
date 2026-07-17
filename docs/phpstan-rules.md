@@ -1,6 +1,6 @@
 # PHPStan rules
 
-Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 25 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
+Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
 
 Every error carries an identifier, so you can opt out of a single rule with PHPStan's `ignoreErrors`:
 
@@ -16,6 +16,7 @@ All rules live in the `Gamache\PHPStan` namespace.
 **Routing:** [RouteNoUnderscorePrefixRule](#routenounderscoreprefixrule) · [RouteParamCamelCaseRule](#routeparamcamelcaserule)
 **CQRS:** [CommandShapeRule](#commandshaperule) · [HandlerShapeRule](#handlershaperule)
 **Messenger:** [MessengerHandlerNamespaceRule](#messengerhandlernamespacerule)
+**Templates:** [ModuleTemplateNamespaceRule](#moduletemplatenamespacerule)
 **Forms & DTOs:** [BuildFormConstraintsRule](#buildformconstraintsrule) · [FormDataClassNotEntityRule](#formdataclassnotentityrule) · [DtoRequestSuffixRule](#dtorequestsuffixrule) · [NotBlankNullableRule](#notblanknullablerule)
 **Entities & migrations:** [EntityAsymmetricVisibilityRule](#entityasymmetricvisibilityrule) · [MigrationDescriptionRule](#migrationdescriptionrule) · [RepositoryParameterNameRule](#repositoryparameternamerule)
 **Security:** [VoterNotReadonlyRule](#voternotreadonlyrule)
@@ -296,6 +297,37 @@ final class CreateProjectController extends AppController
         return $this->render('@Project/create_project.html.twig');
     }
 }
+```
+
+---
+
+## ModuleTemplateNamespaceRule
+
+**Identifier:** `template.moduleNamespace`
+**Configured by:** `gamache.templateNamespaces` (off by default)
+
+Template paths under the module template root must be referenced through their Twig namespace: `@Event/show.html.twig`, not `Module/Event/show.html.twig`. The rule flags string literals matching `<forbiddenPathPrefix><PascalCase>/...` passed as the first argument of a render method.
+
+- `forbiddenPathPrefix` — template-path prefix that must go through a namespace (e.g. `Module/`). Empty (the default) disables the rule.
+- `renderMethods` — method names whose first argument is a template path (default `[render, renderView, htmlTemplate, textTemplate]`, covering controllers and `TemplatedEmail` builders).
+
+Dynamically-assembled paths cannot be checked statically and remain convention-only. The Twig-side counterpart for `{% extends %}` / `{% include %}` / import tags is the Twig-CS-Fixer rule of the same name (see [docs/twig-cs-fixer.md](twig-cs-fixer.md#moduletemplatenamespacerule)).
+
+> `Template "Module/Event/show.html.twig" must be referenced through its Twig namespace: "@Event/show.html.twig".`
+
+```neon
+parameters:
+    gamache:
+        templateNamespaces:
+            forbiddenPathPrefix: 'Module/'
+```
+
+```php
+// BAD
+return $this->render('Module/Event/show.html.twig');
+
+// GOOD
+return $this->render('@Event/show.html.twig');
 ```
 
 ---
