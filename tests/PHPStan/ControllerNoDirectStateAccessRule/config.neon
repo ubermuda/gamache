@@ -1,0 +1,4 @@
+parameters:
+    scanFiles:
+        - %currentWorkingDirectory%/tests/PHPStan/Fixtures/AbstractController.php
+        - %currentWorkingDirectory%/tests/PHPStan/Fixtures/AppController.php

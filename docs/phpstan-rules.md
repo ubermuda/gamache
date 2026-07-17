@@ -12,7 +12,7 @@ parameters:
 
 All rules live in the `Gamache\PHPStan` namespace.
 
-**Controllers:** [ControllerParentRule](#controllerparentrule) · [ControllerSingleActionRule](#controllersingleactionrule) · [ControllerRouteAttributeRule](#controllerrouteattributerule) · [ControllerTemplateNameRule](#controllertemplatenamerule) · [DenyAccessUnlessGrantedRule](#denyaccessunlessgrantedrule) · [IsGrantedNoFullyAuthRule](#isgrantednofullyauthrule) · [IsGrantedClassLevelRule](#isgrantedclasslevelrule) · [IsGrantedVoterConstantRule](#isgrantedvoterconstantrule) · [CsrfTokenAttributeRule](#csrftokenattributerule)
+**Controllers:** [ControllerParentRule](#controllerparentrule) · [ControllerSingleActionRule](#controllersingleactionrule) · [ControllerRouteAttributeRule](#controllerrouteattributerule) · [ControllerNoDirectStateAccessRule](#controllernodirectstateaccessrule) · [ControllerTemplateNameRule](#controllertemplatenamerule) · [DenyAccessUnlessGrantedRule](#denyaccessunlessgrantedrule) · [IsGrantedNoFullyAuthRule](#isgrantednofullyauthrule) · [IsGrantedClassLevelRule](#isgrantedclasslevelrule) · [IsGrantedVoterConstantRule](#isgrantedvoterconstantrule) · [CsrfTokenAttributeRule](#csrftokenattributerule)
 **Routing:** [RouteNoUnderscorePrefixRule](#routenounderscoreprefixrule) · [RouteParamCamelCaseRule](#routeparamcamelcaserule)
 **API:** [ApiRouteConsistencyRule](#apirouteconsistencyrule) · [ApiControllerInputBindingRule](#apicontrollerinputbindingrule)
 **CQRS:** [CommandShapeRule](#commandshaperule) · [HandlerShapeRule](#handlershaperule)
@@ -125,6 +125,54 @@ class DeleteProjectController extends AppController
 class DeleteProjectController extends AppController
 {
     public function __invoke(Project $project): Response { /* … */ }
+}
+```
+
+---
+
+## ControllerNoDirectStateAccessRule
+
+**Identifier:** `controller.directStateAccess`
+**Configured by:** `gamache.controllerBaseClass`
+
+A controller must never read or mutate persistent state directly — every read and every write goes through a Command/Handler, keeping the controller a thin request→handler→response shell. The rule flags any method call inside a controller whose receiver is an injected Doctrine persistence collaborator: the `EntityManagerInterface`/`ObjectManager`, the DBAL `Connection`, or a repository (anything implementing `Doctrine\Persistence\ObjectRepository`).
+
+> `Controller <Class> must not access persistent state directly (<method>()); read and write through a Command/Handler.`
+
+Handlers are invoked as a callable (`($this->handler)(...)`), which is a `FuncCall` rather than a `MethodCall`, so delegation is exempt. Inherited helpers such as `$this->getUser()` and `$this->render()` are called on `$this`, not on a persistence collaborator, so they are exempt too. Detection is limited to calls on `$this` properties whose declared type is a persistence collaborator — the conventional constructor-injection style.
+
+```php
+// BAD — reads and writes state directly
+class RetryDeliveryController extends AppController
+{
+    public function __construct(
+        private readonly EntityManagerInterface $em,
+        private readonly DeviceRepository $devices,
+    ) {
+    }
+
+    public function __invoke(): Response
+    {
+        $device = $this->devices->find($id); // read
+        $this->em->persist($event);          // write
+        $this->em->flush();
+        // …
+    }
+}
+
+// GOOD — reads and writes go through a Handler; the controller only delegates
+class RetryDeliveryController extends AppController
+{
+    public function __construct(
+        private readonly RetryDeliveryHandler $retryDelivery,
+    ) {
+    }
+
+    public function __invoke(): Response
+    {
+        ($this->retryDelivery)(new RetryDeliveryCommand(/* … */));
+        // …
+    }
 }
 ```
 

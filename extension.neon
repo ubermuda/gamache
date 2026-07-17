@@ -105,6 +105,12 @@ services:
         tags:
             - phpstan.rules.rule
     -
+        class: Gamache\PHPStan\ControllerNoDirectStateAccessRule
+        arguments:
+            controllerBaseClass: %gamache.controllerBaseClass%
+        tags:
+            - phpstan.rules.rule
+    -
         class: Gamache\PHPStan\VoterNotReadonlyRule
         tags:
             - phpstan.rules.rule
