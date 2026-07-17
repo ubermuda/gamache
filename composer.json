@@ -24,7 +24,7 @@
         "symfony/security-http": "^6.4|^7.0|^8.0",
         "symfony/translation-contracts": "^3.0",
         "symfony/validator": "^6.4|^7.0|^8.0",
-        "vincentlanglet/twig-cs-fixer": "^3.0"
+        "vincentlanglet/twig-cs-fixer": "^4.0"
     },
     "autoload": {
         "psr-4": {
@@ -36,7 +36,9 @@
             "Gamache\\Tests\\": "tests/"
         }
     },
-    "bin": ["bin/gamache"],
+    "bin": [
+        "bin/gamache"
+    ],
     "config": {
         "optimize-autoloader": true,
         "sort-packages": true

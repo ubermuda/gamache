@@ -202,7 +202,8 @@ final class TranslationKeyRule extends AbstractFixableRule
         }
 
         $pipeToken = $tokens->get($pipeIndex);
-        if (!$pipeToken->isMatching(Token::PUNCTUATION_TYPE, '|')) {
+        // twig-cs-fixer 3.x lexes `|` as punctuation, 4.x as an operator.
+        if (!$pipeToken->isMatching([Token::PUNCTUATION_TYPE, Token::OPERATOR_TYPE], '|')) {
             return;
         }
 
