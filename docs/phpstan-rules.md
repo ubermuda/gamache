@@ -770,16 +770,19 @@ enum Status: string
 
 **Identifier:** `method.passThroughHelper`
 
-A `private`/`protected` method whose entire body forwards its parameters, unchanged and in order, to a single call on a constructor-promoted dependency adds indirection with no logic — inline the call at its call sites.
+A `private`/`protected` method whose entire body is a single call on one of the class's properties, with only trivially-forwardable arguments, adds indirection with no logic — inline the call at its call sites.
 
-Deliberately narrow to avoid false positives. It fires only when **all** of these hold:
+The discriminator is "does the body compute anything?", so the facade shape is flagged regardless of cosmetics:
 
-- the method is `private` or `protected`, non-static, non-abstract;
-- the body is exactly one statement: `return $this->dep->call(...);` or a lone `$this->dep->call(...);` expression;
-- the receiver is a constructor-promoted property;
-- the arguments are plain variables matching the method's parameter list exactly — same names, same order, no extras, no named arguments, no spread, no by-ref or variadic parameters.
+- the receiver may be any `$this->prop` (promoted or not), including property-fetch chains (`$this->a->b`);
+- arguments may be the method's parameters in any order (reordered, dropped), property fetches (`$this->x`), named arguments, or a spread of a parameter (`...$items`) — every one is available verbatim at the call site, so inlining is a copy of the body.
 
-Helpers that add real logic — argument shaping, reordering, extra arguments, conditionals, multiple statements — never match, nor do public methods (a deliberate API surface) or calls on non-promoted properties and locals. A `protected` method in a class that `extends` a parent is skipped entirely: it may override or implement a parent contract, and a contract method cannot be inlined.
+Not flagged (the body adds something):
+
+- any **expression argument** — calls, arithmetic, concatenation, array literals, closures — is argument shaping;
+- **literal/constant arguments** — binding a value is partial application and names a variant (`renderCompact()` vs `render(true)`);
+- multi-statement bodies, conditionals, `public` methods (a deliberate API surface), static helpers, by-ref parameters, method calls in the receiver chain (`$this->a->getB()->…`);
+- a `protected` method in a class that `extends` a parent: it may override or implement a parent contract, and a contract method cannot be inlined.
 
 > `Method ChecklistPanelController::buildMatrix() is a one-liner pass-through to $this->checklistMatrixBuilder->build() — inline the call at its call sites.`
 
@@ -788,6 +791,12 @@ Helpers that add real logic — argument shaping, reordering, extra arguments, c
 private function buildMatrix(array $items): array
 {
     return $this->checklistMatrixBuilder->build($items);
+}
+
+// BAD — reordering, property arguments, variadic spread: still no logic
+private function notify(string $subject): void
+{
+    $this->notifier->send($this->recipient, $subject);
 }
 
 // GOOD — inline at the call site instead

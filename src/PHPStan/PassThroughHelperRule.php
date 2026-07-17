@@ -18,25 +18,28 @@ use PHPStan\Rules\RuleError;
 use PHPStan\Rules\RuleErrorBuilder;
 
 /**
- * A private/protected method whose entire body forwards its parameters,
- * unchanged and in order, to a single call on a constructor-promoted
- * dependency adds indirection with no logic — inline the call at its
- * call sites.
+ * A private/protected method whose entire body is a single call on one of the
+ * class's properties, with only trivially-forwardable arguments, adds
+ * indirection with no logic — inline the call at its call sites.
  *
- * Deliberately narrow to avoid false positives. It only fires when:
- * - the method is private or protected, non-static, non-abstract;
- * - the body is exactly one statement: `return $this->dep->call(...);`
- *   or a lone `$this->dep->call(...);` expression;
- * - the receiver is a constructor-promoted property;
- * - the arguments are plain variables matching the method's parameter
- *   list exactly (same names, same order, no extras, no named arguments,
- *   no spread, no by-ref or variadic parameters).
+ * The discriminator is "does the body compute anything?", so the facade shape
+ * is flagged regardless of cosmetics:
+ * - the receiver may be any `$this->prop` (promoted or not), including
+ *   property-fetch chains (`$this->a->b`);
+ * - arguments may be the method's parameters in any order (reordered,
+ *   dropped), property fetches (`$this->x`), named arguments, or a spread of
+ *   a parameter (`...$items`) — every one of them is available verbatim at
+ *   the call site, so inlining is a copy of the body.
  *
- * Helpers that add real logic — argument shaping, conditionals, loops,
- * extra arguments, multiple statements — never match. A protected method in
- * a class that extends a parent is skipped entirely: it may override or
- * implement a parent contract, and a contract method cannot be inlined at
- * its call sites.
+ * Not flagged (the body adds something):
+ * - any expression argument — calls, arithmetic, concatenation, array
+ *   literals, closures — is argument shaping;
+ * - literal/constant arguments — binding a value is partial application and
+ *   names a variant (`renderCompact()` vs `render(true)`);
+ * - multi-statement bodies, conditionals, public methods (a deliberate API
+ *   surface), static helpers, by-ref parameters;
+ * - a protected method in a class that extends a parent: it may override or
+ *   implement a parent contract, and a contract method cannot be inlined.
  *
  * @implements Rule<InClassNode>
  */
@@ -57,11 +60,6 @@ final readonly class PassThroughHelperRule implements Rule
             return [];
         }
 
-        $promoted = $this->promotedPropertyNames($class);
-        if ([] === $promoted) {
-            return [];
-        }
-
         $errors = [];
         foreach ($class->getMethods() as $method) {
             if (!$method->isPrivate() && !$method->isProtected()) {
@@ -71,7 +69,7 @@ final readonly class PassThroughHelperRule implements Rule
                 continue;
             }
 
-            $call = $this->passThroughCall($method, $promoted);
+            $call = $this->passThroughCall($method);
             if (null === $call) {
                 continue;
             }
@@ -82,14 +80,13 @@ final readonly class PassThroughHelperRule implements Rule
                 continue;
             }
 
-            \assert($call->var instanceof PropertyFetch && $call->var->name instanceof Identifier);
             \assert($call->name instanceof Identifier);
 
             $errors[] = RuleErrorBuilder::message(sprintf(
                 'Method %s::%s() is a one-liner pass-through to $this->%s->%s() — inline the call at its call sites.',
                 $class->name->name,
                 $method->name->name,
-                $call->var->name->name,
+                $this->receiverPath($call->var),
                 $call->name->name,
             ))
             ->identifier('method.passThroughHelper')
@@ -100,32 +97,18 @@ final readonly class PassThroughHelperRule implements Rule
         return $errors;
     }
 
-    /** @return list<string> */
-    private function promotedPropertyNames(Class_ $class): array
-    {
-        $constructor = array_find($class->getMethods(), fn ($method) => '__construct' === $method->name->name);
-        if (null === $constructor) {
-            return [];
-        }
-
-        $names = [];
-        foreach ($constructor->params as $param) {
-            if (0 !== $param->flags && $param->var instanceof Variable && \is_string($param->var->name)) {
-                $names[] = $param->var->name;
-            }
-        }
-
-        return $names;
-    }
-
     /**
      * Returns the forwarded call when the method matches the pass-through
      * shape, null otherwise.
-     *
-     * @param list<string> $promoted
      */
-    private function passThroughCall(ClassMethod $method, array $promoted): ?MethodCall
+    private function passThroughCall(ClassMethod $method): ?MethodCall
     {
+        foreach ($method->params as $param) {
+            if ($param->byRef) {
+                return null; // by-ref forwarding is semantics-sensitive
+            }
+        }
+
         $statements = $method->stmts;
         if (null === $statements || 1 !== \count($statements)) {
             return null;
@@ -144,45 +127,56 @@ final readonly class PassThroughHelperRule implements Rule
             return null;
         }
 
-        $receiver = $call->var;
-        if (
-            !$receiver instanceof PropertyFetch
-            || !$receiver->var instanceof Variable
-            || 'this' !== $receiver->var->name
-            || !$receiver->name instanceof Identifier
-            || !\in_array($receiver->name->name, $promoted, true)
-        ) {
+        if (!$this->isThisPropertyPath($call->var)) {
             return null;
         }
 
-        return $this->forwardsParametersUnchanged($method, $call) ? $call : null;
-    }
-
-    private function forwardsParametersUnchanged(ClassMethod $method, MethodCall $call): bool
-    {
-        $parameterNames = [];
-        foreach ($method->params as $param) {
-            if ($param->variadic || $param->byRef || 0 !== $param->flags) {
-                return false; // variadics, by-ref, promotion: not a plain forward
-            }
-            if (!$param->var instanceof Variable || !\is_string($param->var->name)) {
-                return false;
-            }
-            $parameterNames[] = $param->var->name;
-        }
-
-        $argumentNames = [];
         foreach ($call->args as $arg) {
-            if (!$arg instanceof Node\Arg || null !== $arg->name || $arg->unpack) {
-                return false; // named arguments or spread: caller-visible shaping
+            if (!$arg instanceof Node\Arg || !$this->isForwardable($arg->value)) {
+                return null;
             }
-            if (!$arg->value instanceof Variable || !\is_string($arg->value->name)) {
-                return false; // anything but a plain variable is a transformation
-            }
-            $argumentNames[] = $arg->value->name;
         }
 
-        return $argumentNames === $parameterNames;
+        return $call;
     }
 
+    /**
+     * A static property path rooted in $this: `$this->prop`, `$this->a->b`, …
+     * Any method call in the chain is logic and disqualifies the path.
+     */
+    private function isThisPropertyPath(Node\Expr $expr): bool
+    {
+        while ($expr instanceof PropertyFetch && $expr->name instanceof Identifier) {
+            $expr = $expr->var;
+        }
+
+        return $expr instanceof Variable && 'this' === $expr->name;
+    }
+
+    /**
+     * An argument is forwardable when it is available verbatim at the call
+     * site: a plain variable (a parameter — reordered or dropped, still no
+     * logic) or a $this-rooted property path. Anything else — literals
+     * (partial application), calls, expressions — means the body adds
+     * something.
+     */
+    private function isForwardable(Node\Expr $value): bool
+    {
+        if ($value instanceof Variable && \is_string($value->name)) {
+            return true;
+        }
+
+        return $value instanceof PropertyFetch && $this->isThisPropertyPath($value);
+    }
+
+    private function receiverPath(Node\Expr $expr): string
+    {
+        $parts = [];
+        while ($expr instanceof PropertyFetch && $expr->name instanceof Identifier) {
+            array_unshift($parts, $expr->name->name);
+            $expr = $expr->var;
+        }
+
+        return implode('->', $parts);
+    }
 }

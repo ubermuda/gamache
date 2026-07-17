@@ -4,19 +4,13 @@ declare(strict_types=1);
 
 class WithPassThroughHelpers
 {
+    public object $lazy;
+
+    public array $defaults = [];
+
     public function __construct(
         private readonly PassThroughMatrixBuilder $matrixBuilder,
     ) {
-    }
-
-    public function show(): array
-    {
-        return $this->buildMatrix([1, 2]);
-    }
-
-    public function close(): void
-    {
-        $this->flush();
     }
 
     private function buildMatrix(array $items): array
@@ -33,6 +27,41 @@ class WithPassThroughHelpers
     {
         return $this->matrixBuilder->build($items);
     }
+
+    private function variadicForward(int ...$numbers): int
+    {
+        return $this->matrixBuilder->sum(...$numbers);
+    }
+
+    private function forwardsProperty(): array
+    {
+        return $this->matrixBuilder->build($this->defaults);
+    }
+
+    private function reordersArguments(string $first, string $second): void
+    {
+        $this->matrixBuilder->pair($second, $first);
+    }
+
+    private function dropsParameter(array $items, bool $flag): array
+    {
+        return $this->matrixBuilder->build($items);
+    }
+
+    private function usesNamedArgument(array $items): array
+    {
+        return $this->matrixBuilder->build(items: $items);
+    }
+
+    private function callsNonPromotedProperty(array $items): array
+    {
+        return $this->lazy->build($items);
+    }
+
+    private function callsThroughChain(array $items): array
+    {
+        return $this->lazy->inner->build($items);
+    }
 }
 
 class PassThroughMatrixBuilder
@@ -43,6 +72,15 @@ class PassThroughMatrixBuilder
     }
 
     public function flush(): void
+    {
+    }
+
+    public function sum(int ...$numbers): int
+    {
+        return array_sum($numbers);
+    }
+
+    public function pair(string $first, string $second): void
     {
     }
 }

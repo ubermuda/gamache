@@ -9,14 +9,9 @@ abstract class ValidPassThroughParent
 
 class ValidPassThroughHelpers extends ValidPassThroughParent
 {
-    public array $defaults = [];
-
-    private object $lazy;
-
     public function __construct(
         private readonly ValidPassThroughService $service,
     ) {
-        $this->lazy = new \stdClass();
     }
 
     public function publicDelegation(array $items): array
@@ -36,34 +31,15 @@ class ValidPassThroughHelpers extends ValidPassThroughParent
         return $this->service->build(array_values($items));
     }
 
-    private function addsArgument(array $items): array
+    private function bindsLiteral(array $items): array
     {
+        // Partial application: names a variant. Inlining would scatter the flag.
         return $this->service->buildWith($items, true);
     }
 
-    private function reordersArguments(string $first, string $second): void
-    {
-        $this->service->pair($second, $first);
-    }
-
-    private function dropsParameter(array $items, bool $flag): array
+    private function byRefForward(array &$items): array
     {
         return $this->service->build($items);
-    }
-
-    private function usesNamedArgument(array $items): array
-    {
-        return $this->service->build(items: $items);
-    }
-
-    private function forwardsProperty(): array
-    {
-        return $this->service->build($this->defaults);
-    }
-
-    private function callsNonPromotedProperty(array $items): array
-    {
-        return $this->lazy->build($items);
     }
 
     private function hasCondition(array $items): array
@@ -82,14 +58,15 @@ class ValidPassThroughHelpers extends ValidPassThroughParent
         return $this->service->build($items);
     }
 
+    private function callsAccessorInChain(array $items): array
+    {
+        // A method call in the receiver chain is logic, not a static path.
+        return $this->service->inner()->build($items);
+    }
+
     private static function staticHelper(ValidPassThroughService $service, array $items): array
     {
         return $service->build($items);
-    }
-
-    private function variadicForward(int ...$numbers): void
-    {
-        $this->service->sum(...$numbers);
     }
 }
 
@@ -105,15 +82,12 @@ class ValidPassThroughService
         return $flag ? $items : [];
     }
 
-    public function pair(string $first, string $second): void
-    {
-    }
-
     public function send(string $message): void
     {
     }
 
-    public function sum(int ...$numbers): void
+    public function inner(): self
     {
+        return $this;
     }
 }
