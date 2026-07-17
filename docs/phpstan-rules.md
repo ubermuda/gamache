@@ -22,7 +22,7 @@ All rules live in the `Gamache\PHPStan` namespace.
 **Entities & migrations:** [EntityAsymmetricVisibilityRule](#entityasymmetricvisibilityrule) · [MigrationDescriptionRule](#migrationdescriptionrule) · [RepositoryParameterNameRule](#repositoryparameternamerule)
 **Security:** [VoterNotReadonlyRule](#voternotreadonlyrule)
 **Translations:** [TranslationCallSiteRule](#translationcallsiterule) · [TranslationAttributeRule](#translationattributerule)
-**Misc:** [EnumKebabCaseRule](#enumkebabcaserule)
+**Misc:** [EnumKebabCaseRule](#enumkebabcaserule) · [PassThroughHelperRule](#passthroughhelperrule)
 
 ---
 
@@ -761,5 +761,41 @@ enum Status: string
 enum Status: string
 {
     case InProgress = 'in-progress';
+}
+```
+
+---
+
+## PassThroughHelperRule
+
+**Identifier:** `method.passThroughHelper`
+
+A `private`/`protected` method whose entire body forwards its parameters, unchanged and in order, to a single call on a constructor-promoted dependency adds indirection with no logic — inline the call at its call sites.
+
+Deliberately narrow to avoid false positives. It fires only when **all** of these hold:
+
+- the method is `private` or `protected`, non-static, non-abstract;
+- the body is exactly one statement: `return $this->dep->call(...);` or a lone `$this->dep->call(...);` expression;
+- the receiver is a constructor-promoted property;
+- the arguments are plain variables matching the method's parameter list exactly — same names, same order, no extras, no named arguments, no spread, no by-ref or variadic parameters.
+
+Helpers that add real logic — argument shaping, reordering, extra arguments, conditionals, multiple statements — never match, nor do public methods (a deliberate API surface) or calls on non-promoted properties and locals. A `protected` method in a class that `extends` a parent is skipped entirely: it may override or implement a parent contract, and a contract method cannot be inlined.
+
+> `Method ChecklistPanelController::buildMatrix() is a one-liner pass-through to $this->checklistMatrixBuilder->build() — inline the call at its call sites.`
+
+```php
+// BAD — pure forwarding, no logic
+private function buildMatrix(array $items): array
+{
+    return $this->checklistMatrixBuilder->build($items);
+}
+
+// GOOD — inline at the call site instead
+$matrix = $this->checklistMatrixBuilder->build($items);
+
+// Not flagged — the helper shapes its argument (real logic)
+private function buildMatrix(array $items): array
+{
+    return $this->checklistMatrixBuilder->build(array_values($items));
 }
 ```
