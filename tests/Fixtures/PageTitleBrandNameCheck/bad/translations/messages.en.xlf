@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+    <file source-language="en" target-language="en" datatype="plaintext" original="messages">
+        <body>
+            <trans-unit id="app.name">
+                <source>app.name</source>
+                <target>Acme</target>
+            </trans-unit>
+            <trans-unit id="home.page.title">
+                <source>home.page.title</source>
+                <target>Home — Acme</target>
+            </trans-unit>
+            <trans-unit id="login.page.title">
+                <source>login.page.title</source>
+                <target>Sign in — </target>
+            </trans-unit>
+            <trans-unit id="dashboard.page.title">
+                <source>dashboard.page.title</source>
+                <target>Dashboard</target>
+            </trans-unit>
+            <trans-unit id="marketing.tagline">
+                <source>marketing.tagline</source>
+                <target>Acme makes it easy</target>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>

@@ -66,6 +66,14 @@ services:
         tags:
             - phpstan.rules.rule
     -
+        class: Gamache\PHPStan\ApiRouteConsistencyRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\ApiControllerInputBindingRule
+        tags:
+            - phpstan.rules.rule
+    -
         class: Gamache\PHPStan\ControllerParentRule
         arguments:
             controllerBaseClass: %gamache.controllerBaseClass%
