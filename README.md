@@ -7,9 +7,9 @@ Gamache packages a set of opinionated conventions for Symfony applications and e
 | Surface | What it provides | Docs |
 |---|---|---|
 | `gamache` CLI | 11 project-level checks (config files, templates, translations, …) | [docs/checks.md](docs/checks.md) |
-| PHPStan | 27 rules for controllers, APIs, CQRS commands, forms, routes, entities, translations, security | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
+| PHPStan | 28 rules for controllers, APIs, CQRS commands, forms, templates, routes, entities, translations, security | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
 | PHP-CS-Fixer | 2 custom fixers for attribute formatting | [docs/php-cs-fixer.md](docs/php-cs-fixer.md) |
-| Twig-CS-Fixer | 4 custom rules for templates | [docs/twig-cs-fixer.md](docs/twig-cs-fixer.md) |
+| Twig-CS-Fixer | 5 custom rules for templates | [docs/twig-cs-fixer.md](docs/twig-cs-fixer.md) |
 | Rector | 1 custom rule + 2 built-in rules for repository injection and argument ordering | [docs/rector.md](docs/rector.md) |
 
 Each surface is independent — adopt one, several, or all of them.
@@ -103,7 +103,7 @@ includes:
     - vendor/ubermuda/gamache/extension.neon
 ```
 
-This registers all 27 rules at once. Seven parameters control the configurable rules:
+This registers all 28 rules at once. Eight parameters control the configurable rules:
 
 ```neon
 parameters:
@@ -145,6 +145,13 @@ parameters:
             namespacePattern: '#^App\\Module\\(.+)\\Controller\\[^\\]+Controller$#'
             templateDirectory: 'templates/Module'
             renderMethods: [render, renderFormResponse]
+
+        # Template paths that must be referenced through a Twig namespace
+        # instead — @Event/show.html.twig, not Module/Event/show.html.twig
+        # (off when unset)
+        templateNamespaces:
+            forbiddenPathPrefix: 'Module/'
+            renderMethods: [render, renderView, htmlTemplate, textTemplate]
 ```
 
 See [docs/phpstan-rules.md](docs/phpstan-rules.md) for every rule, its error identifier, and examples. Rules without parameters cannot be configured individually — use PHPStan's `ignoreErrors` with the rule's error identifier to opt out of one.
