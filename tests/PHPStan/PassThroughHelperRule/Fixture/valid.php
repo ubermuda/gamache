@@ -64,6 +64,12 @@ class ValidPassThroughHelpers extends ValidPassThroughParent
         return $this->service->inner()->build($items);
     }
 
+    private function delegatesToSiblingMethod(array $items): array
+    {
+        // A bare $this->method() call is sibling delegation, not a dependency facade.
+        return $this->reshapesArgument($items);
+    }
+
     private static function staticHelper(ValidPassThroughService $service, array $items): array
     {
         return $service->build($items);

@@ -142,15 +142,19 @@ final readonly class PassThroughHelperRule implements Rule
 
     /**
      * A static property path rooted in $this: `$this->prop`, `$this->a->b`, …
-     * Any method call in the chain is logic and disqualifies the path.
+     * At least one property hop is required — a bare `$this->method()` call is
+     * sibling-method delegation, not a dependency facade. Any method call in
+     * the chain is logic and disqualifies the path.
      */
     private function isThisPropertyPath(Node\Expr $expr): bool
     {
+        $hops = 0;
         while ($expr instanceof PropertyFetch && $expr->name instanceof Identifier) {
             $expr = $expr->var;
+            ++$hops;
         }
 
-        return $expr instanceof Variable && 'this' === $expr->name;
+        return $hops > 0 && $expr instanceof Variable && 'this' === $expr->name;
     }
 
     /**
