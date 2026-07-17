@@ -113,6 +113,10 @@ services:
         tags:
             - phpstan.rules.rule
     -
+        class: Gamache\PHPStan\SelfAssigningTernaryRule
+        tags:
+            - phpstan.rules.rule
+    -
         class: Gamache\PHPStan\NotBlankNullableRule
         tags:
             - phpstan.rules.rule
