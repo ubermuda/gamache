@@ -1,6 +1,6 @@
 # PHPStan rules
 
-Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 25 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
+Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 27 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
 
 Every error carries an identifier, so you can opt out of a single rule with PHPStan's `ignoreErrors`:
 
@@ -14,6 +14,7 @@ All rules live in the `Gamache\PHPStan` namespace.
 
 **Controllers:** [ControllerParentRule](#controllerparentrule) · [ControllerSingleActionRule](#controllersingleactionrule) · [ControllerRouteAttributeRule](#controllerrouteattributerule) · [ControllerTemplateNameRule](#controllertemplatenamerule) · [DenyAccessUnlessGrantedRule](#denyaccessunlessgrantedrule) · [IsGrantedNoFullyAuthRule](#isgrantednofullyauthrule) · [IsGrantedClassLevelRule](#isgrantedclasslevelrule) · [IsGrantedVoterConstantRule](#isgrantedvoterconstantrule) · [CsrfTokenAttributeRule](#csrftokenattributerule)
 **Routing:** [RouteNoUnderscorePrefixRule](#routenounderscoreprefixrule) · [RouteParamCamelCaseRule](#routeparamcamelcaserule)
+**API:** [ApiRouteConsistencyRule](#apirouteconsistencyrule) · [ApiControllerInputBindingRule](#apicontrollerinputbindingrule)
 **CQRS:** [CommandShapeRule](#commandshaperule) · [HandlerShapeRule](#handlershaperule)
 **Messenger:** [MessengerHandlerNamespaceRule](#messengerhandlernamespacerule)
 **Forms & DTOs:** [BuildFormConstraintsRule](#buildformconstraintsrule) · [FormDataClassNotEntityRule](#formdataclassnotentityrule) · [DtoRequestSuffixRule](#dtorequestsuffixrule) · [NotBlankNullableRule](#notblanknullablerule)
@@ -332,6 +333,58 @@ Route parameters must be camelCase, so they mirror the camelCase entity property
 
 // GOOD
 #[Route('/{orgId}/projects/{projectSlug}')]
+```
+
+---
+
+## ApiRouteConsistencyRule
+
+**Identifier:** `route.apiConsistency`
+
+A JSON API surface keeps three signals in lock-step: a route **path** under `/api/`, a route **name** prefixed `api_`, and a class in a `\Controller\Api\` namespace. The path is canonical; the name and namespace are derived from it. Any disagreement — a misplaced controller, or a web route accidentally named `api_` — is reported. The name is compared only when the `#[Route]` sets one.
+
+> `API routing convention mismatch on <Class>: path "<path>", name <name>, and namespace <ns> must agree. An "/api/" path requires an "api_" route name and a "\Controller\Api\" namespace (and vice versa).`
+
+```php
+// BAD — /api/ path, but the class is not in a Controller\Api namespace
+namespace App\Module\Foo\Controller;
+#[Route('/api/foo', name: 'api_foo')]
+class MisplacedApiController { /* … */ }
+
+// GOOD
+namespace App\Module\Foo\Controller\Api;
+#[Route('/api/foo', name: 'api_foo')]
+class CreateFooController { /* … */ }
+```
+
+---
+
+## ApiControllerInputBindingRule
+
+**Identifier:** `controller.apiInputBinding`
+
+A controller in a `\Controller\Api\` namespace must bind input through `#[MapRequestPayload]` and a validated DTO — never a Symfony form (`$this->createForm()`, a `FormInterface`/`FormFactoryInterface` dependency) nor a hand-rolled read of the raw request body (`->getContent()`). Only the forbidden constructs are flagged; a payload parameter is *not* required, so read endpoints (GET with only route params) don't false-positive.
+
+> `API controller <Class> must bind input via #[MapRequestPayload], not a Symfony form ($this->createForm()).`
+
+```php
+// BAD
+namespace App\Module\Foo\Controller\Api;
+class BadController
+{
+    public function __invoke(Request $request): JsonResponse
+    {
+        $form = $this->createForm(FooType::class);   // flagged
+        $data = json_decode($request->getContent()); // flagged (->getContent())
+        // …
+    }
+}
+
+// GOOD
+class GoodController
+{
+    public function __invoke(#[MapRequestPayload] FooRequest $payload): JsonResponse { /* … */ }
+}
 ```
 
 ---

@@ -6,8 +6,8 @@ Gamache packages a set of opinionated conventions for Symfony applications and e
 
 | Surface | What it provides | Docs |
 |---|---|---|
-| `gamache` CLI | 10 project-level checks (config files, templates, translations, …) | [docs/checks.md](docs/checks.md) |
-| PHPStan | 25 rules for controllers, CQRS commands, forms, routes, entities, translations, security | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
+| `gamache` CLI | 11 project-level checks (config files, templates, translations, …) | [docs/checks.md](docs/checks.md) |
+| PHPStan | 27 rules for controllers, APIs, CQRS commands, forms, routes, entities, translations, security | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
 | PHP-CS-Fixer | 2 custom fixers for attribute formatting | [docs/php-cs-fixer.md](docs/php-cs-fixer.md) |
 | Twig-CS-Fixer | 4 custom rules for templates | [docs/twig-cs-fixer.md](docs/twig-cs-fixer.md) |
 | Rector | 1 custom rule + 2 built-in rules for repository injection and argument ordering | [docs/rector.md](docs/rector.md) |
@@ -103,7 +103,7 @@ includes:
     - vendor/ubermuda/gamache/extension.neon
 ```
 
-This registers all 25 rules at once. Seven parameters control the configurable rules:
+This registers all 27 rules at once. Seven parameters control the configurable rules:
 
 ```neon
 parameters:

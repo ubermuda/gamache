@@ -8,6 +8,7 @@ All checks live in the `Gamache\Check` namespace.
 - [MessengerRoutingCheck](#messengerroutingcheck)
 - [NoArbitraryValuesCheck](#noarbitraryvaluescheck)
 - [NoTodosCheck](#notodoscheck)
+- [PageTitleBrandNameCheck](#pagetitlebrandnamecheck)
 - [ServicesYamlCheck](#servicesyamlcheck)
 - [ServiceTagNamesCheck](#servicetagnamescheck)
 - [TranslationCheck](#translationcheck)
@@ -124,6 +125,26 @@ Rejects `TODO`, `FIXME`, `XXX`, and `@todo` markers in source code: track follow
 
 // GOOD
 // Tracked in PROJ-123
+```
+
+---
+
+## PageTitleBrandNameCheck
+
+Keeps the brand name out of page-title translation values. A page title is composed in the template from two translated strings — `{{ 'x.page.title'|trans }} — {{ 'app.name'|trans }}` — so the `*.page.title` value itself must carry only the page name.
+
+**Scans:** `translations/messages.*.xlf`. Any `<trans-unit>` whose id ends in `.page.title` is flagged when its `<target>` contains the brand or a ` — ` separator. The brand is read from the same file's `app.name` target **per locale**, never hard-coded.
+
+**Severity:** Error — `Page-title translation "<key>" must contain only the page name. …`
+
+**Options:** none. **Exemptions:** trans-units whose id does not end in `.page.title`.
+
+```xml
+<!-- BAD — brand and separator baked into the value -->
+<trans-unit id="login.page.title"><target>Sign in — Better Plans</target></trans-unit>
+
+<!-- GOOD — page name only; the template appends " — {{ 'app.name'|trans }}" -->
+<trans-unit id="login.page.title"><target>Sign in</target></trans-unit>
 ```
 
 ---
