@@ -141,6 +141,15 @@ final class CommentBudgetCheck extends AbstractCheck
                 continue;
             }
 
+            // A Symfony Flex section marker is structural, not prose. It is a
+            // `#` line, so without this it glues the comments on either side of
+            // it into one run and reports two in-budget blocks as one long one.
+            if (str_starts_with($trimmed, '###>') || str_starts_with($trimmed, '###<')) {
+                $this->flush($run, $absPath);
+
+                continue;
+            }
+
             if (1 === $number && str_starts_with($trimmed, '#!')) {
                 continue;
             }

@@ -118,6 +118,12 @@ final class CommentBudgetCheckTest extends TestCase
         self::assertEmpty($result->violations);
     }
 
+    public function test_flex_section_markers_do_not_fuse_neighbouring_comments(): void
+    {
+        $result = $this->checkFile('flex_markers/.env');
+        self::assertEmpty($result->violations);
+    }
+
     private function check(string $fixture): \Gamache\Check\CheckResult
     {
         return $this->checkFile($fixture.'/src/FooService.php');
