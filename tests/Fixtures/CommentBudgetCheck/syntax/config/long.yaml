@@ -1,0 +1,10 @@
+# One
+# Two
+# Three
+# Four
+# Five
+# Six
+services:
+    # Short and fine
+    _defaults:
+        autowire: true

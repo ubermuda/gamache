@@ -4,6 +4,7 @@ These checks run through the `gamache` CLI. Register the ones you want in `gamac
 
 All checks live in the `Gamache\Check` namespace.
 
+- [CommentBudgetCheck](#commentbudgetcheck)
 - [FormTypeTranslationKeysCheck](#formtypetranslationkeyscheck)
 - [MessengerRoutingCheck](#messengerroutingcheck)
 - [NoArbitraryValuesCheck](#noarbitraryvaluescheck)
@@ -15,6 +16,37 @@ All checks live in the `Gamache\Check` namespace.
 - [TranslationParityCheck](#translationparitycheck)
 - [TurboStreamTargetsCheck](#turbostreamtargetscheck)
 - [XlfPluralizationCheck](#xlfpluralizationcheck)
+
+---
+
+## CommentBudgetCheck
+
+Flags runs of consecutive comment lines longer than a budget. A long comment is usually a decision log — the investigation, the alternatives weighed, the benchmark numbers — which belongs in the commit message or pull request, leaving only the constraint a reader needs at that line.
+
+**Scans:** `src/**/*.php`, `tests/**/*.php`, `config/**/*.yaml`, `templates/**/*.twig`, `assets/**/*.js`, `assets/**/*.css` (configurable). Comment syntax follows the file extension; anything unrecognised is read as `#`-commented, which covers YAML, dotenv, justfiles, Dockerfiles and shell. PHP is tokenised, so `//` inside a string literal is never counted. Paths under `vendor/` or `node_modules/` are skipped.
+
+**Severity:** Warning — `Comment block of 13 lines exceeds the 5-line budget; keep the constraint here and move the reasoning to the commit message`
+
+**Options:**
+
+- `maxLines` (default `5`) — the longest run that passes.
+- `patterns` (default as above) — pass a list to scan other files, including extensionless ones such as `justfile`.
+
+**Exemptions:** PHP docblocks and JSDoc `/**` blocks, whose length is driven by annotations rather than prose. A shebang does not open a block. Blank lines do not break a run, since a comment split by one still reads as a single block. Suppress a genuine false positive with `@comment-budget-ignore` anywhere in the block.
+
+```php
+// BAD — the reasoning outlives its usefulness in the file
+// The hourly sweep runs three candidate queries, none of which shared
+// indexed columns before this: findExpiredTrials() and
+// findTrialEndedSubscribers() both filter on (status, trial_ends_at);
+// findCanceledPastPeriod() filters on (status, current_period_end)
+// instead. Partial indexes would be tighter, but Postgres rewrites the
+// predicate on storage and DBAL's comparator does not normalize it back.
+
+// GOOD — the trap survives, the reasoning moves to the PR
+// Partial indexes don't round-trip through DBAL's comparator (Postgres
+// rewrites the predicate), so migrate-diff never settles. Keep these plain.
+```
 
 ---
 
