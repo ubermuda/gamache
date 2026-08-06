@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`CommentBudgetCheck`: flag comment blocks that have outgrown their usefulness.**
+  Reports runs of consecutive comment lines longer than `maxLines` (default 5) as
+  warnings, so the run still exits 0. Comment syntax follows the file extension —
+  PHP is tokenised, `//` covers JS/TS/CSS, `{# #}` covers Twig, and anything
+  unrecognised is read as `#`-commented, which handles YAML, dotenv, justfiles and
+  shell. Docblocks and JSDoc are exempt, since annotations rather than prose drive
+  their length; `@comment-budget-ignore` suppresses a false positive. See
+  [docs/checks.md](docs/checks.md#commentbudgetcheck).
 - **`ApiRouteConsistencyRule` + `ApiControllerInputBindingRule`: enforce JSON API conventions.**
   `ApiRouteConsistencyRule` (`route.apiConsistency`) requires a route's `/api/` path,
   `api_` name, and `\Controller\Api\` namespace to agree — catching misplaced
