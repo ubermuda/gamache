@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   annotate a constructor you do not own, making an explicit `arguments:` block the
   only available mechanism (e.g. configuring a bundle middleware via an env var).
 
+### Fixed
+
+- **`CommentBudgetCheck`: Symfony Flex section markers no longer fuse two comments
+  into one run.** `###> pkg ###` / `###< pkg ###` are `#` lines, so a `.env` with
+  two in-budget comments on either side of a marker was reported as one long
+  block. The markers now break a run, as code does. Measured on one downstream
+  app, this was every remaining finding in `.env` and `compose.yaml`.
+
 ### Added
 
 - **`CommentBudgetCheck`: flag comment blocks that have outgrown their usefulness.**
