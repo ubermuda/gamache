@@ -11,7 +11,10 @@ namespace Gamache\Check;
  * commit message or pull request that introduced it, leaving only the
  * constraint a reader needs at that line.
  *
- * Advisory: violations are warnings, so the run still exits 0.
+ * Warning by default, so the run still exits 0. Pass `Severity::Error` to make
+ * the budget binding: the `@comment-budget-ignore` marker is what carries the
+ * judgment a line count cannot, so a project that wants every unsuppressed
+ * block to be a deliberate one can enforce rather than advise.
  *
  * The comment syntax follows the file's extension; anything unrecognised is
  * read as `#`-commented, which covers YAML, dotenv, justfiles, Dockerfiles and
@@ -40,6 +43,7 @@ final class CommentBudgetCheck extends AbstractCheck
     public function __construct(
         private readonly int $maxLines = 5,
         ?array $patterns = null,
+        private readonly Severity $severity = Severity::Warning,
     ) {
         $this->patterns = $patterns ?? self::DEFAULT_PATTERNS;
     }
@@ -193,7 +197,7 @@ final class CommentBudgetCheck extends AbstractCheck
                 $length,
                 $this->maxLines,
             ),
-            Severity::Warning,
+            $this->severity,
             $absPath,
             $startLine,
         );

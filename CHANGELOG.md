@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`CommentBudgetCheck`: a `severity` option, so the budget can be made binding.**
+  Defaults to `Severity::Warning`, which is the existing behaviour and leaves the
+  exit code untouched — nothing changes for a project that does not pass the new
+  argument. Pass `Severity::Error` and an unsuppressed over-budget block fails the
+  run.
+
+  The reason to want that: a check that cannot fail is a check whose green result
+  carries no information, and advisory output is easy to stop reading. In one
+  downstream session, three over-budget blocks were introduced and shipped through
+  three consecutive green gates before anyone noticed — on a branch that had just
+  merged a comment-budget sweep. All three turned out to be real and were fixed by
+  shortening rather than suppressing.
+
+  What makes enforcement tenable is `@comment-budget-ignore`: a line count cannot
+  tell a good six-line comment from a bad one, but the marker supplies exactly that
+  judgment. A project that marks its deliberate long blocks can then treat every
+  remaining one as an oversight.
+
 ### Changed
 
 - **`ServicesYamlCheck`: exempt third-party services from the `arguments:` ban.**
