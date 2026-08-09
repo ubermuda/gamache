@@ -36,10 +36,24 @@ final class CommentBudgetCheckTest extends TestCase
         self::assertSame(11, $result->violations[0]->line);
     }
 
-    public function test_violations_are_advisory(): void
+    public function test_violations_are_advisory_by_default(): void
     {
         $result = $this->check('long_block');
         self::assertSame(Severity::Warning, $result->violations[0]->severity);
+        self::assertFalse($result->hasFailed());
+    }
+
+    public function test_the_budget_can_be_made_binding(): void
+    {
+        $result = $this->check('long_block', Severity::Error);
+        self::assertSame(Severity::Error, $result->violations[0]->severity);
+        self::assertTrue($result->hasFailed());
+    }
+
+    public function test_the_ignore_marker_still_suppresses_when_binding(): void
+    {
+        $result = $this->check('ignore_marker', Severity::Error);
+        self::assertEmpty($result->violations);
         self::assertFalse($result->hasFailed());
     }
 
@@ -124,14 +138,14 @@ final class CommentBudgetCheckTest extends TestCase
         self::assertEmpty($result->violations);
     }
 
-    private function check(string $fixture): \Gamache\Check\CheckResult
+    private function check(string $fixture, Severity $severity = Severity::Warning): \Gamache\Check\CheckResult
     {
-        return $this->checkFile($fixture.'/src/FooService.php');
+        return $this->checkFile($fixture.'/src/FooService.php', $severity);
     }
 
-    private function checkFile(string $relative): \Gamache\Check\CheckResult
+    private function checkFile(string $relative, Severity $severity = Severity::Warning): \Gamache\Check\CheckResult
     {
-        $check = new CommentBudgetCheck();
+        $check = new CommentBudgetCheck(severity: $severity);
         $check->run($this->fixtures.'/'.$relative);
 
         return $check->getResult();

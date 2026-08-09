@@ -25,12 +25,15 @@ Flags runs of consecutive comment lines longer than a budget. A long comment is 
 
 **Scans:** `src/**/*.php`, `tests/**/*.php`, `config/**/*.yaml`, `templates/**/*.twig`, `assets/**/*.js`, `assets/**/*.css` (configurable). Comment syntax follows the file extension; anything unrecognised is read as `#`-commented, which covers YAML, dotenv, justfiles, Dockerfiles and shell. PHP is tokenised, so `//` inside a string literal is never counted. Paths under `vendor/` or `node_modules/` are skipped.
 
-**Severity:** Warning — `Comment block of 13 lines exceeds the 5-line budget; keep the constraint here and move the reasoning to the commit message`
+**Severity:** Warning by default, so the run still exits 0 — `Comment block of 13 lines exceeds the 5-line budget; keep the constraint here and move the reasoning to the commit message`. Pass `Severity::Error` to make the budget binding.
 
 **Options:**
 
 - `maxLines` (default `5`) — the longest run that passes.
 - `patterns` (default as above) — pass a list to scan other files, including extensionless ones such as `justfile`.
+- `severity` (default `Severity::Warning`) — pass `Severity::Error` to fail the run on an unsuppressed block.
+
+A line count cannot tell a good six-line comment from a bad one, which is why the default only advises. `@comment-budget-ignore` is what supplies that judgment, so a project willing to mark its deliberate long blocks can raise the severity and have every remaining one be an oversight. Advisory output is easy to stop reading: a check that cannot fail is a check whose green result means nothing.
 
 **Exemptions:** PHP docblocks and JSDoc `/**` blocks, whose length is driven by annotations rather than prose. A shebang does not open a block. Blank lines do not break a run, since a comment split by one still reads as a single block. Suppress a genuine false positive with `@comment-budget-ignore` anywhere in the block.
 
