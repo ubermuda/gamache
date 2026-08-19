@@ -52,7 +52,7 @@ final class DeploymentConfigParityCheck extends AbstractCheck
         if (null !== $terraformRoot) {
             $this->compare(
                 $terraformRoot.'/'.$this->terraformExamplePath,
-                self::parseTerraformVariables($this->read($absPath)),
+                self::parseTerraformVariables($this->read($absPath) ?? ''),
                 $this->ignoredTerraformVariables,
                 fn (string $name): string => sprintf( // @translation-check-ignore
                     'Terraform variable "%s" is declared in %s but never named in %s, so an operator copying the template cannot discover it. A commented-out example counts.',
@@ -67,7 +67,7 @@ final class DeploymentConfigParityCheck extends AbstractCheck
         if (null !== $composeRoot) {
             $this->compare(
                 $composeRoot.'/'.$this->composeFilePath,
-                self::parseEnvKeys($this->read($absPath)),
+                self::parseEnvKeys($this->read($absPath) ?? ''),
                 $this->ignoredEnvKeys,
                 fn (string $name): string => sprintf( // @translation-check-ignore
                     'Environment variable "%s" is documented in %s but never referenced in %s. A Compose env file supplies interpolation values only, so setting it has no effect.',
@@ -96,8 +96,10 @@ final class DeploymentConfigParityCheck extends AbstractCheck
             return;
         }
 
+        // An empty-but-readable template documents nothing, which is the failure
+        // mode at its worst: every name must be reported, not silently forgiven.
         $haystack = $this->read($expectedInAbsPath);
-        if ('' === $haystack) {
+        if (null === $haystack) {
             return;
         }
 
@@ -131,9 +133,11 @@ final class DeploymentConfigParityCheck extends AbstractCheck
             : null;
     }
 
-    private function read(string $absPath): string
+    private function read(string $absPath): ?string
     {
-        return @file_get_contents($absPath) ?: '';
+        $content = @file_get_contents($absPath);
+
+        return false === $content ? null : $content;
     }
 
     /**

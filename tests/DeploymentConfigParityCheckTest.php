@@ -84,6 +84,16 @@ final class DeploymentConfigParityCheckTest extends TestCase
         self::assertStringContainsString('MAILER_FROM_NAME', $result->violations[0]->message);
     }
 
+    public function test_an_empty_template_documents_nothing_and_reports_every_variable(): void
+    {
+        $check = new DeploymentConfigParityCheck();
+        $check->run($this->fixtures.'/empty_example/terraform/variables.tf');
+        $result = $check->getResult();
+        self::assertTrue($result->hasFailed());
+        self::assertCount(1, $result->violations);
+        self::assertStringContainsString('"region"', $result->violations[0]->message);
+    }
+
     public function test_passes_silently_when_the_counterpart_file_is_absent(): void
     {
         $check = new DeploymentConfigParityCheck();
