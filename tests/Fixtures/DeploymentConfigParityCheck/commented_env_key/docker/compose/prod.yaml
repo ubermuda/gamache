@@ -1,0 +1,2 @@
+x-app-environment: &app-environment
+  APP_SECRET: "${APP_SECRET:?set it in prod.env}"

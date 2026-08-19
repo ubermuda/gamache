@@ -1,0 +1,3 @@
+region = "tor"
+
+# db_cluster_region = "tor1"

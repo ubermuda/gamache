@@ -1,0 +1,4 @@
+x-app-environment: &app-environment
+  APP_SECRET: "${APP_SECRET:?set it in prod.env}"
+  DEFAULT_URI: "${DEFAULT_URI:?set it in prod.env}"
+  DATABASE_URL: "postgresql://${POSTGRES_USER:-loupe}@database:5432/loupe"

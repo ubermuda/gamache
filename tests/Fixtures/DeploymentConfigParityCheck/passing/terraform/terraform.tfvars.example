@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+
+region = "tor"
+
+# Object storage for exports. Optional — omit both and exports stay local.
+# export_storage_key    = ""
+# db_cluster_region     = "tor1"
