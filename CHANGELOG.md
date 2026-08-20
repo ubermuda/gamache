@@ -28,7 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   module injects go in `moduleProvidedEnvKeys`, and names deliberately reaching no
   deployment in `ignoredAppEnvKeys`, whose entries are reported once the application stops
   reading them — an exemption that outlives its variable is where the next unwired variable
-  hides.
+  hides. Dot-directories are skipped when scanning, so generated copies of other people's
+  code — `terraform/.terraform/` above all — are not mistaken for a project's own wiring.
 
   The failure it catches is that nothing else catches it. `terraform validate` passes
   whether or not the tfvars example mentions a variable, because that file is comment-only
