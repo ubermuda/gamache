@@ -146,4 +146,112 @@ final class DeploymentConfigParityCheckTest extends TestCase
         self::assertFalse($result->hasFailed());
         self::assertEmpty($result->violations);
     }
+
+    public function test_detects_an_app_variable_that_reaches_no_deployment(): void
+    {
+        $check = new DeploymentConfigParityCheck();
+        $check->run($this->fixtures.'/app_unwired/.env');
+        $result = $check->getResult();
+        self::assertTrue($result->hasFailed());
+        self::assertCount(2, $result->violations);
+        foreach ($result->violations as $violation) {
+            self::assertStringContainsString('BRAND_NEW_TOKEN', $violation->message);
+        }
+        self::assertStringContainsString('terraform/', $result->violations[0]->message);
+        self::assertStringContainsString('prod.yaml', $result->violations[1]->message);
+    }
+
+    public function test_a_variable_description_naming_the_env_key_is_not_wiring(): void
+    {
+        // app_unwired/terraform/variables.tf names BRAND_NEW_TOKEN in a
+        // description, which a whole-file text search would accept.
+        $check = new DeploymentConfigParityCheck();
+        $check->run($this->fixtures.'/app_unwired/.env');
+        $result = $check->getResult();
+        self::assertTrue($result->hasFailed());
+        self::assertStringContainsString('BRAND_NEW_TOKEN', $result->violations[0]->message);
+        self::assertStringContainsString('assigned by nothing', $result->violations[0]->message);
+    }
+
+    public function test_reads_app_variables_from_placeholders_a_dotenv_never_lists(): void
+    {
+        $check = new DeploymentConfigParityCheck();
+        $check->run($this->fixtures.'/app_placeholder/.env');
+        $result = $check->getResult();
+        self::assertTrue($result->hasFailed());
+
+        $reported = array_unique(array_map(
+            static fn ($violation): string => preg_replace('/^\D*"([A-Z_]+)".*$/', '$1', $violation->message) ?? '',
+            $result->violations,
+        ));
+        sort($reported);
+        self::assertSame(['STRIPE_SECRET_KEY', 'TRUSTED_PROXIES'], $reported);
+    }
+
+    public function test_module_provided_and_ignored_app_variables_are_excused(): void
+    {
+        $check = new DeploymentConfigParityCheck(
+            moduleProvidedEnvKeys: ['MESSENGER_TRANSPORT_DSN'],
+            ignoredAppEnvKeys: ['MESSENGER_TRANSPORT_DSN', 'COMPOSE_PROJECT_NAME'],
+        );
+        $check->run($this->fixtures.'/app_wired/.env');
+        $result = $check->getResult();
+        self::assertFalse($result->hasFailed());
+        self::assertEmpty($result->violations);
+    }
+
+    public function test_a_commented_out_dotenv_hint_is_not_demanded_of_a_deployment(): void
+    {
+        $check = new DeploymentConfigParityCheck(
+            moduleProvidedEnvKeys: ['MESSENGER_TRANSPORT_DSN'],
+            ignoredAppEnvKeys: ['MESSENGER_TRANSPORT_DSN', 'COMPOSE_PROJECT_NAME'],
+        );
+        $check->run($this->fixtures.'/app_wired/.env');
+        $result = $check->getResult();
+        self::assertFalse($result->hasFailed());
+    }
+
+    public function test_detects_a_stale_exemption_the_app_no_longer_reads(): void
+    {
+        $check = new DeploymentConfigParityCheck(
+            ignoredAppEnvKeys: ['MESSENGER_TRANSPORT_DSN', 'COMPOSE_PROJECT_NAME', 'GONE_LONG_AGO'],
+        );
+        $check->run($this->fixtures.'/app_wired/.env');
+        $result = $check->getResult();
+        self::assertTrue($result->hasFailed());
+        self::assertCount(1, $result->violations);
+        self::assertStringContainsString('GONE_LONG_AGO', $result->violations[0]->message);
+        self::assertStringContainsString('stale', $result->violations[0]->message);
+        self::assertStringEndsWith('.env', $result->violations[0]->file);
+    }
+
+    public function test_detects_a_compose_knob_the_template_never_offers(): void
+    {
+        $check = new DeploymentConfigParityCheck();
+        $check->run($this->fixtures.'/compose_undocumented/docker/compose/prod.env.example');
+        $result = $check->getResult();
+        self::assertTrue($result->hasFailed());
+        self::assertCount(2, $result->violations);
+
+        $reported = array_map(
+            static fn ($violation): string => preg_replace('/^\D*"([A-Z_]+)".*$/', '$1', $violation->message) ?? '',
+            $result->violations,
+        );
+        sort($reported);
+        // APP_ENV is a literal, so it is not settable and not reported.
+        self::assertSame(['APP_SOURCE_URL', 'EXPORT_STORAGE_PREFIX'], $reported);
+        self::assertStringEndsWith('prod.env.example', $result->violations[0]->file);
+    }
+
+    public function test_detects_a_tfvars_entry_no_variable_backs(): void
+    {
+        $check = new DeploymentConfigParityCheck();
+        $check->run($this->fixtures.'/tfvar_undeclared/terraform/variables.tf');
+        $result = $check->getResult();
+        self::assertTrue($result->hasFailed());
+        self::assertCount(1, $result->violations);
+        self::assertStringContainsString('db_cluster_size', $result->violations[0]->message);
+        self::assertStringContainsString('does nothing', $result->violations[0]->message);
+        self::assertStringEndsWith('terraform/variables.tf', $result->violations[0]->file);
+    }
 }

@@ -1,0 +1,5 @@
+x-app-environment: &app-environment
+  APP_SECRET: "${APP_SECRET:?set it}"
+  EXPORT_STORAGE_PREFIX: "${EXPORT_STORAGE_PREFIX:-}"
+  APP_SOURCE_URL:
+  APP_ENV: prod
