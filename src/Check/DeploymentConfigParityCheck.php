@@ -341,9 +341,16 @@ final class DeploymentConfigParityCheck extends AbstractCheck
             return [];
         }
 
+        // SKIP_DOTS drops `.` and `..` but not dot-directories, and those are
+        // where generated copies of other people's code live: `terraform/
+        // .terraform/` holds the downloaded source of every module, whose own
+        // env assignments would otherwise read as this project's wiring.
         $files = [];
         $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
+            new \RecursiveCallbackFilterIterator(
+                new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
+                static fn (\SplFileInfo $file): bool => !str_starts_with($file->getFilename(), '.'),
+            ),
         );
         foreach ($iterator as $file) {
             if ($file instanceof \SplFileInfo
