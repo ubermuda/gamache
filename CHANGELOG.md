@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`DeploymentConfigParityCheck`: deployment variables must reach the file an operator copies.**
+  Compares two pairs of files, both configurable and both skipped when either half is
+  absent: every `variable "x" {` in `terraform/variables.tf` must be named somewhere in
+  `terraform/terraform.tfvars.example`, and every assignment in
+  `docker/compose/prod.env.example` must be referenced somewhere in
+  `docker/compose/prod.yaml`. A commented-out mention counts on both sides — a template
+  is documentation, and `# export_storage_key = "..."` is the right way to document an
+  optional variable.
+
+  The failure it catches is that nothing else catches it. `terraform validate` passes
+  whether or not the tfvars example mentions a variable, because that file is comment-only
+  and no tool reads it. Compose starts fine whether or not `prod.yaml` interpolates a key,
+  because an env file supplies interpolation values without injecting them into containers —
+  so an operator can set a documented variable, watch it be ignored, and have no way to
+  diagnose why. Both leave the option real but undiscoverable.
+
+  It came out of a downstream branch that wired a variable end-to-end and missed the
+  template twice in a row: once in Terraform, once in Compose. Two green gates, two
+  options nobody could find. Pointed at that project's `main` afterwards, the check
+  immediately found a third: `export_storage` declared and consumed, with only its
+  `export_storage_*` siblings documented.
+
 - **`CommentBudgetCheck`: a `severity` option, so the budget can be made binding.**
   Defaults to `Severity::Warning`, which is the existing behaviour and leaves the
   exit code untouched — nothing changes for a project that does not pass the new

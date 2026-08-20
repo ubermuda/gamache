@@ -6,7 +6,7 @@ Gamache packages a set of opinionated conventions for Symfony applications and e
 
 | Surface | What it provides | Docs |
 |---|---|---|
-| `gamache` CLI | 11 project-level checks (config files, templates, translations, …) | [docs/checks.md](docs/checks.md) |
+| `gamache` CLI | 14 project-level checks (config files, templates, translations, …) | [docs/checks.md](docs/checks.md) |
 | PHPStan | 29 rules for controllers, APIs, CQRS commands, forms, templates, routes, entities, translations, security | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
 | PHP-CS-Fixer | 2 custom fixers for attribute formatting | [docs/php-cs-fixer.md](docs/php-cs-fixer.md) |
 | Twig-CS-Fixer | 6 custom rules for templates | [docs/twig-cs-fixer.md](docs/twig-cs-fixer.md) |

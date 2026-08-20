@@ -5,6 +5,7 @@ These checks run through the `gamache` CLI. Register the ones you want in `gamac
 All checks live in the `Gamache\Check` namespace.
 
 - [CommentBudgetCheck](#commentbudgetcheck)
+- [DeploymentConfigParityCheck](#deploymentconfigparitycheck)
 - [FormTypeTranslationKeysCheck](#formtypetranslationkeyscheck)
 - [MessengerRoutingCheck](#messengerroutingcheck)
 - [NoArbitraryValuesCheck](#noarbitraryvaluescheck)
@@ -49,6 +50,65 @@ A line count cannot tell a good six-line comment from a bad one, which is why th
 // GOOD — the trap survives, the reasoning moves to the PR
 // Partial indexes don't round-trip through DBAL's comparator (Postgres
 // rewrites the predicate), so migrate-diff never settles. Keep these plain.
+```
+
+---
+
+## DeploymentConfigParityCheck
+
+Ensures every deployment variable a project declares also reaches the file an operator copies. A variable can be declared, consumed and deployed while the template that documents it never mentions it: `terraform validate` passes either way, because the tfvars example is comment-only and nothing reads it, and Compose starts fine, because an env file supplies *interpolation values* without injecting them into containers. The option is then real but undiscoverable — or discoverable, set, and silently ignored.
+
+**Scans:** two independent pairs, both configurable and both skipped when either half is absent (most projects have no `terraform/` directory, and that is not a violation):
+
+| Declared in | Must be named in |
+|---|---|
+| `terraform/variables.tf` | `terraform/terraform.tfvars.example` |
+| `docker/compose/prod.env.example` | `docker/compose/prod.yaml` |
+
+For Terraform, every `variable "name" {` must appear somewhere in the tfvars example. **A commented-out example counts** — that file is documentation, so `# export_storage_key = "..."` is exactly the right way to document an optional variable.
+
+For Compose, every assignment in the env-file template must be referenced somewhere in the Compose file. The match is whole-file rather than scoped to the `x-app-environment` block, because plenty of keys are legitimately interpolation-only: `POSTGRES_PASSWORD` gets folded into `DATABASE_URL`, `COMPOSE_PROJECT_NAME` names the stack. What the check rules out is the key that appears *nowhere* — the one an operator can set and watch do nothing. Commented-out assignments count as documented: an optional variable an operator uncomments is just as broken as a required one.
+
+Names match on whole-word boundaries, so a `region` variable is not considered documented by a line that only mentions `db_cluster_region`.
+
+**Severity:** Error — `Terraform variable "export_storage_key" is declared in terraform/variables.tf but never named in terraform/terraform.tfvars.example, so an operator copying the template cannot discover it. A commented-out example counts.` The violation is reported against the file the name is missing from, which is the file you have to edit.
+
+**Options:**
+
+| Option | Type | Default |
+|---|---|---|
+| `terraformVariablesPath` | `string` | `'terraform/variables.tf'` |
+| `terraformExamplePath` | `string` | `'terraform/terraform.tfvars.example'` |
+| `composeEnvExamplePath` | `string` | `'docker/compose/prod.env.example'` |
+| `composeFilePath` | `string` | `'docker/compose/prod.yaml'` |
+| `ignoredTerraformVariables` | `list<string>` | `[]` |
+| `ignoredEnvKeys` | `list<string>` | `[]` |
+
+Use the ignore lists for variables a project deliberately keeps out of its template — credentials supplied only through `TF_VAR_*`, for instance.
+
+```terraform
+# BAD — variables.tf declares it, main.tf consumes it, the template never names it
+variable "export_storage_key" {
+  type      = string
+  sensitive = true
+}
+```
+
+```terraform
+# GOOD — terraform.tfvars.example, where an operator will actually see it
+# export_storage_key = "..."   # optional: S3-compatible export storage
+```
+
+```bash
+# BAD — prod.env.example documents it, prod.yaml never interpolates it,
+# so an operator sets it and nothing happens
+MERCURE_JWT_SECRET=
+```
+
+```yaml
+# GOOD — prod.yaml, where setting it has an effect
+x-app-environment: &app-environment
+  MERCURE_JWT_SECRET: "${MERCURE_JWT_SECRET:?set it in docker/compose/prod.env}"
 ```
 
 ---
