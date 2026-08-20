@@ -63,7 +63,10 @@ Ensures every deployment variable a project declares also reaches the file an op
 | Declared in | Must be named in |
 |---|---|
 | `terraform/variables.tf` | `terraform/terraform.tfvars.example` |
+| `terraform/terraform.tfvars.example` | `terraform/variables.tf` |
 | `docker/compose/prod.env.example` | `docker/compose/prod.yaml` |
+| `docker/compose/prod.yaml` (settable keys) | `docker/compose/prod.env.example` |
+| `.env` + `%env(...)%` in `config/`, `src/` | assigned in `terraform/`, named in `docker/compose/prod.yaml` |
 
 For Terraform, every `variable "name" {` must appear somewhere in the tfvars example. **A commented-out example counts** — that file is documentation, so `# export_storage_key = "..."` is exactly the right way to document an optional variable.
 
@@ -83,8 +86,29 @@ Names match on whole-word boundaries, so a `region` variable is not considered d
 | `composeFilePath` | `string` | `'docker/compose/prod.yaml'` |
 | `ignoredTerraformVariables` | `list<string>` | `[]` |
 | `ignoredEnvKeys` | `list<string>` | `[]` |
+| `appEnvPath` | `string` | `'.env'` |
+| `envReferenceDirs` | `list<string>` | `['config', 'src']` |
+| `terraformDir` | `string` | `'terraform'` |
+| `terraformReportPath` | `string` | `'terraform/main.tf'` |
+| `moduleProvidedEnvKeys` | `list<string>` | `[]` |
+| `ignoredAppEnvKeys` | `list<string>` | `[]` |
 
 Use the ignore lists for variables a project deliberately keeps out of its template — credentials supplied only through `TF_VAR_*`, for instance.
+
+### What the application reads
+
+The file pairs above only compare deployment files to each other, so they are all equally consistent when a variable reaches no deployment at all. That is the failure that shipped twice in the project this check came from: a variable consumed by the application, declared nowhere in `terraform/`, and therefore invisible to every pair.
+
+The application's own set is the union of `appEnvPath` and every `%env(...)%` placeholder under `envReferenceDirs`, because neither is complete: a variable can be resolved from a placeholder and never appear in the dotenv, and placeholders live in `#[Autowire]` attributes under `src/` as well as in `config/`. The name is taken as the last colon-separated segment, so processors and a named parameter fallback do not hide it — `%env(default:app.trusted_proxies_default:TRUSTED_PROXIES)%` reads as `TRUSTED_PROXIES`.
+
+Each name must then be *assigned* somewhere in `terraformDir` — as `NAME = {` in an env map or `key = "NAME"` in an env block — and named somewhere in `composeFilePath`. Assignment rather than mention, because a Terraform variable's `description` routinely names the environment variable it feeds, so a text search is satisfied by prose while nothing wires the value through. Two escape hatches, both deliberately narrow:
+
+- `moduleProvidedEnvKeys` — injected by an external Terraform module, so absent from this repository's `.tf` files by design. Transcribe it from the module at the ref you pin; nothing can derive it for you, and only some module *arguments* become environment variables.
+- `ignoredAppEnvKeys` — read but deliberately reaching no deployment, either development-only or already correct at the committed dotenv value.
+
+`ignoredAppEnvKeys` is itself checked: a name the application no longer reads is reported as a stale exemption. Without that, the list becomes the place a missing variable hides, since adding a name to it silences the check just as well as wiring the variable up. `moduleProvidedEnvKeys` is exempt from that, because it describes the module rather than this application and a module may well inject names the application never reads — which means a pin bump that changes the module's own set is not caught, and re-reading it is on you.
+
+For Compose, what counts as *settable* is an interpolation in any of its `${V}`, `${V:-default}` and `${V:?message}` forms, or a bare `KEY:` passing the host's value through. A literal like `APP_ENV: prod` is not something an operator can set, so requiring it to be documented would be noise.
 
 ```terraform
 # BAD — variables.tf declares it, main.tf consumes it, the template never names it

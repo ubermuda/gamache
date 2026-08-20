@@ -16,7 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docker/compose/prod.env.example` must be referenced somewhere in
   `docker/compose/prod.yaml`. A commented-out mention counts on both sides — a template
   is documentation, and `# export_storage_key = "..."` is the right way to document an
-  optional variable.
+  optional variable. Both pairs are checked in both directions, so a template entry no
+  variable backs — a knob an operator sets and the deployment ignores — is reported too.
+
+  The check also starts one step earlier, at what the application reads: the committed
+  dotenv plus every `%env(...)%` placeholder under the configured reference directories,
+  since neither is complete alone. Each such variable must be named somewhere in
+  `terraform/` and somewhere in the Compose file, which is what catches a variable wired
+  into no deployment at all — the failure the file-pair scans cannot see, because every
+  file that would have mentioned it is consistent without it. Names an external Terraform
+  module injects go in `moduleProvidedEnvKeys`, and names deliberately reaching no
+  deployment in `ignoredAppEnvKeys`, whose entries are reported once the application stops
+  reading them — an exemption that outlives its variable is where the next unwired variable
+  hides.
 
   The failure it catches is that nothing else catches it. `terraform validate` passes
   whether or not the tfvars example mentions a variable, because that file is comment-only

@@ -1,0 +1,2 @@
+region = "tor1"
+# db_cluster_size = "db-s-1vcpu-1gb"
