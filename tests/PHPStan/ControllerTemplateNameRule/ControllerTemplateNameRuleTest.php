@@ -28,6 +28,19 @@ final class ControllerTemplateNameRuleTest extends RuleTestCase
         $this->analyse([__DIR__.'/Fixture/valid.php'], []);
     }
 
+    public function test_a_locale_segment_does_not_stop_a_template_matching(): void
+    {
+        // ShowTerms and ShowPrivacy resolve their template from the request
+        // locale, so they can never name one literally. ShowCookies proves the
+        // stripping is not a licence to ignore any dotted segment.
+        $this->analyse([__DIR__.'/Fixture/locale.php'], [
+            [
+                'Controller ShowCookiesController renders a template but none under templates/Module/Legal matches its name (expected "show_cookies.html.twig"; matching ignores case, underscores, and directories).',
+                31,
+            ],
+        ]);
+    }
+
     public function test_controllers_without_matching_template_are_reported(): void
     {
         $this->analyse([__DIR__.'/Fixture/violation.php'], [

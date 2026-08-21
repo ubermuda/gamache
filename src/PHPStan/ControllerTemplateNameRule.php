@@ -171,7 +171,21 @@ final readonly class ControllerTemplateNameRule implements Rule
 
     private function normalize(string $name): string
     {
-        return strtolower(str_replace(['_', '/'], '', $name));
+        return strtolower(str_replace(['_', '/'], '', $this->stripLocaleSuffix($name)));
+    }
+
+    /**
+     * Drops a trailing locale segment, so `show_terms.en.html.twig` still
+     * matches ShowTermsController. Such a template is picked at runtime from
+     * the request locale, so the controller can never name one literally and
+     * would otherwise be unmatchable by construction.
+     *
+     * The pattern is deliberately tight — two lowercase letters, optionally
+     * `_XX` — so an ordinary dotted filename is not silently accepted.
+     */
+    private function stripLocaleSuffix(string $name): string
+    {
+        return preg_replace('/\\.[a-z]{2}(?:_[A-Z]{2})?$/', '', $name) ?? $name;
     }
 
     private function snakeCase(string $name): string
