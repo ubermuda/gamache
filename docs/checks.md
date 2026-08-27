@@ -13,6 +13,7 @@ All checks live in the `Gamache\Check` namespace.
 - [PageTitleBrandNameCheck](#pagetitlebrandnamecheck)
 - [ServicesYamlCheck](#servicesyamlcheck)
 - [ServiceTagNamesCheck](#servicetagnamescheck)
+- [SkillReferenceCheck](#skillreferencecheck)
 - [TranslationCheck](#translationcheck)
 - [TranslationParityCheck](#translationparitycheck)
 - [TurboStreamTargetsCheck](#turbostreamtargetscheck)
@@ -332,6 +333,39 @@ interface HandlerInterface {}
 // GOOD
 #[AutoconfigureTag('app.my_handler')]
 interface HandlerInterface {}
+```
+
+---
+
+## SkillReferenceCheck
+
+Reports references in agent skill files that no longer resolve: a `just` recipe the justfile does not define, and a file path that does not exist.
+
+A skill tells an agent which command to run and which file to open, and nothing links it to the thing it names. Rename a recipe or move a directory and the skill still reads as authoritative — the next session follows an instruction that cannot work, and it surfaces as the agent improvising rather than as a broken build. Nothing else catches this: skills are prose, so no compiler, linter or test suite ever reads them.
+
+**Scans:** `.claude/skills/*/SKILL.md` (configurable). Only fenced blocks and inline code spans are read, because a skill is prose about a codebase — `just cs` is a command, "just a moment" is English.
+
+**Severity:** Error by default — *References `just deploy-prod`, which justfile does not define. Rename the reference or restore the recipe.*
+
+**Options:**
+
+- `patterns` (default `.claude/skills/*/SKILL.md`) — the files to scan. Point it at `.claude/commands/*.md` or a docs directory to cover those too.
+- `justfilePath` (default `justfile`) — where recipes are declared. When the file is absent, recipe references are left alone rather than all reported as missing.
+- `pathPrefixes` (default `assets/`, `bin/`, `config/`, `docs/`, `e2e/`, `migrations/`, `public/`, `templates/`, `translations/`) — only tokens starting with one of these are read as a file reference. Everything else in a code span is prose, a flag, or somebody else's path.
+- `ignoredRecipes` — recipe names a skill may name although the justfile does not define them, e.g. one a plugin supplies.
+- `ignoredPaths` — paths a skill may name although they are absent, e.g. one the project generates or gitignores.
+- `severity` (default `Severity::Error`).
+
+**What counts as a reference.** A `just` token names a recipe only in command position — at the start of a code span or after `&&`, `||`, `;`, `|` or `(`. Recipe parameters, dependencies and `alias x := y` are all read from the justfile; `set` directives and `name := value` assignments are not recipes and are reported when a skill names one. A path token containing a placeholder, glob or variable (`<`, `>`, `{`, `}`, `$`, `%`, `*`, `?`) is a shape rather than a path and is skipped.
+
+`src/` and `tests/` are deliberately absent from the default prefixes. Skills illustrate naming conventions with paths that were never meant to resolve — a module called X importing from a module called Y, a `CreateIssueHandler.php` that only shows where a handler goes. Pointed at a real project's skills, every finding under `src/` was one of those and none was rot. Add the prefix if your skills cite only files that exist.
+
+```markdown
+<!-- BAD — the recipe was renamed to `worktree-up` two months ago -->
+Provision the tree with `just worktree-create`.
+
+<!-- GOOD -->
+Provision the tree with `just worktree-up`.
 ```
 
 ---

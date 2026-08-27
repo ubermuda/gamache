@@ -1,0 +1,13 @@
+default:
+    @just --list
+
+cs:
+    echo fix
+
+worktree-up name="":
+    echo up
+
+alias fix := cs
+
+prod_image := "ghcr.io/x"
+set positional-arguments
