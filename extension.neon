@@ -227,3 +227,7 @@ services:
         class: Gamache\PHPStan\PassThroughHelperRule
         tags:
             - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\McpToolNameRule
+        tags:
+            - phpstan.rules.rule
