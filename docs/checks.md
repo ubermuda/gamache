@@ -352,9 +352,18 @@ A skill tells an agent which command to run and which file to open, and nothing 
 - `patterns` (default `.claude/skills/*/SKILL.md`) — the files to scan. Point it at `.claude/commands/*.md` or a docs directory to cover those too.
 - `justfilePath` (default `justfile`) — where recipes are declared. When the file is absent, recipe references are left alone rather than all reported as missing.
 - `pathPrefixes` (default `assets/`, `bin/`, `config/`, `docs/`, `e2e/`, `migrations/`, `public/`, `templates/`, `translations/`) — only tokens starting with one of these are read as a file reference. Everything else in a code span is prose, a flag, or somebody else's path.
+- `mentionMarkers` (default `recipe`, `recipes`, `style`) — words that, following a recipe reference, mark it as *named* rather than *run*. Pass an empty list to assert every reference.
 - `ignoredRecipes` — recipe names a skill may name although the justfile does not define them, e.g. one a plugin supplies.
 - `ignoredPaths` — paths a skill may name although they are absent, e.g. one the project generates or gitignores.
 - `severity` (default `Severity::Error`).
+
+**Naming a recipe is not asserting it exists.** "Run `just cs` first" claims the recipe is there; "a `just merge-main`-style recipe" proposes one that is not. A register of planned automations is written entirely in the second form, so a rule that cannot tell them apart reports that file for doing its job — and the finding is then indistinguishable from the rotted reference the check exists to catch.
+
+A reference is read as a mention when the recipe name **ends** the code span and one of the `mentionMarkers` follows it. Anything more in the span — an argument, a pipeline — makes it a command again, so `` `just deploy-prod --now` recipe `` is still asserted.
+
+The cost is a class of false negatives: "the `just secrets-scan` recipe" is a mention too, so a genuinely deleted recipe goes unreported when it is written about rather than invoked. That is the right way round. A missed finding costs one stale sentence; a rule that reports a proposals file every run gets switched off, and then it catches nothing at all.
+
+Fenced blocks are exempt from this entirely — a fence is code, and code is run.
 
 **What counts as a reference.** A `just` token names a recipe only in command position — at the start of a code span or after `&&`, `||`, `;`, `|` or `(`. Recipe parameters, dependencies and `alias x := y` are all read from the justfile; `set` directives and `name := value` assignments are not recipes and are reported when a skill names one. A path token containing a placeholder, glob or variable (`<`, `>`, `{`, `}`, `$`, `%`, `*`, `?`) is a shape rather than a path and is skipped.
 

@@ -78,6 +78,20 @@ final class SkillReferenceCheckTest extends TestCase
         self::assertStringContainsString('docs/GENERATED.md', $result->violations[0]->message);
     }
 
+    public function test_a_recipe_named_rather_than_run_is_a_proposal(): void
+    {
+        $result = $this->check('mentions');
+        self::assertCount(1, $result->violations);
+        self::assertStringContainsString('just deploy-prod', $result->violations[0]->message);
+        self::assertSame(11, $result->violations[0]->line);
+    }
+
+    public function test_mention_markers_can_be_switched_off(): void
+    {
+        $result = $this->check('mentions', mentionMarkers: []);
+        self::assertCount(4, $result->violations);
+    }
+
     public function test_severity_is_configurable(): void
     {
         $result = $this->check('missing_recipe', severity: Severity::Warning);
@@ -95,6 +109,7 @@ final class SkillReferenceCheckTest extends TestCase
      * @param list<string>      $ignoredRecipes
      * @param list<string>      $ignoredPaths
      * @param list<string>|null $pathPrefixes
+     * @param list<string>|null $mentionMarkers
      */
     private function check(
         string $case,
@@ -102,12 +117,14 @@ final class SkillReferenceCheckTest extends TestCase
         array $ignoredPaths = [],
         Severity $severity = Severity::Error,
         ?array $pathPrefixes = null,
+        ?array $mentionMarkers = null,
     ): CheckResult {
         $check = new SkillReferenceCheck(
             pathPrefixes: $pathPrefixes,
             ignoredRecipes: $ignoredRecipes,
             ignoredPaths: $ignoredPaths,
             severity: $severity,
+            mentionMarkers: $mentionMarkers,
         );
         $check->run($this->fixtures.'/'.$case.'/.claude/skills/demo/SKILL.md');
 

@@ -45,6 +45,18 @@ final class SkillReferenceCheck extends AbstractCheck
     ];
 
     /**
+     * Words that, immediately after a reference, mark it as being named rather
+     * than run — "a `just merge-main` recipe" proposes one, "run `just cs`"
+     * asserts one exists.
+     *
+     * @var list<string>
+     */
+    private const array DEFAULT_MENTION_MARKERS = ['recipe', 'recipes', 'style'];
+
+    /** How much prose after a span is read looking for a marker. */
+    private const int MENTION_LOOKAHEAD = 24;
+
+    /**
      * Characters that make a token a shape rather than a path: placeholders,
      * globs, variables and interpolation. Their presence is why the reference
      * cannot be resolved, so it is not reported.
@@ -56,6 +68,9 @@ final class SkillReferenceCheck extends AbstractCheck
 
     /** @var list<string> */
     private readonly array $pathPrefixes;
+
+    /** @var list<string> */
+    private readonly array $mentionMarkers;
 
     /**
      * @param list<string>|null $patterns     Skill files to scan. Defaults to `.claude/skills/*&#47;SKILL.md`.
@@ -71,6 +86,9 @@ final class SkillReferenceCheck extends AbstractCheck
      *                                          e.g. one the project generates or gitignores.
      * @param Severity          $severity       Error by default: a skill naming a command that does
      *                                          not exist is wrong now, not stylistically off.
+     * @param list<string>|null $mentionMarkers Words that, following a recipe reference, mark it as
+     *                                          named rather than run. Pass an empty list to assert
+     *                                          every reference, at the cost of reporting proposals.
      */
     public function __construct(
         ?array $patterns = null,
@@ -79,9 +97,11 @@ final class SkillReferenceCheck extends AbstractCheck
         private readonly array $ignoredRecipes = [],
         private readonly array $ignoredPaths = [],
         private readonly Severity $severity = Severity::Error,
+        ?array $mentionMarkers = null,
     ) {
         $this->patterns = $patterns ?? self::DEFAULT_PATTERNS;
         $this->pathPrefixes = $pathPrefixes ?? self::DEFAULT_PATH_PREFIXES;
+        $this->mentionMarkers = $mentionMarkers ?? self::DEFAULT_MENTION_MARKERS;
     }
 
     public function getName(): string
@@ -108,22 +128,22 @@ final class SkillReferenceCheck extends AbstractCheck
 
         $recipes = $this->recipes($root);
 
-        foreach (self::codeSpans($content) as [$line, $span]) {
-            $this->inspectSpan($span, $line, $absPath, $root, $recipes);
+        foreach (self::codeSpans($content) as [$line, $span, $after]) {
+            $this->inspectSpan($span, $after, $line, $absPath, $root, $recipes);
         }
     }
 
     /**
      * @param array<string, true>|null $recipes null when the project has no justfile
      */
-    private function inspectSpan(string $span, int $line, string $absPath, string $root, ?array $recipes): void
+    private function inspectSpan(string $span, string $after, int $line, string $absPath, string $root, ?array $recipes): void
     {
         $tokens = preg_split('/\s+/', trim($span)) ?: [];
         $previous = null;
         $expectRecipe = false;
 
         foreach ($tokens as $token) {
-            if ($expectRecipe && null !== $recipes) {
+            if ($expectRecipe && null !== $recipes && !$this->isMention($token, $span, $after)) {
                 $this->checkRecipe($token, $line, $absPath, $recipes);
             }
 
@@ -230,10 +250,12 @@ final class SkillReferenceCheck extends AbstractCheck
     }
 
     /**
-     * Code spans with the 1-based line they start on: whole lines inside a
-     * fence, and the contents of each inline span outside one.
+     * Code spans with the 1-based line they start on and the prose that follows
+     * them: whole lines inside a fence, and the contents of each inline span
+     * outside one. A fenced line is followed by nothing, because a fence is
+     * code — every reference in it is invoked rather than named.
      *
-     * @return list<array{int, string}>
+     * @return list<array{int, string, string}>
      */
     private static function codeSpans(string $content): array
     {
@@ -255,17 +277,36 @@ final class SkillReferenceCheck extends AbstractCheck
             }
 
             if (null !== $fence) {
-                $spans[] = [$line, $rawLine];
+                $spans[] = [$line, $rawLine, ''];
                 continue;
             }
 
-            preg_match_all('/`([^`\n]+)`/', $rawLine, $matches);
-            foreach ($matches[1] as $inline) {
-                $spans[] = [$line, $inline];
+            preg_match_all('/`([^`\n]+)`/', $rawLine, $matches, \PREG_OFFSET_CAPTURE);
+            foreach ($matches[1] as $index => $inline) {
+                [$whole, $offset] = $matches[0][$index];
+                $spans[] = [$line, $inline[0], substr($rawLine, $offset + \strlen($whole), self::MENTION_LOOKAHEAD)];
             }
         }
 
         return $spans;
+    }
+
+    /**
+     * A reference is a mention rather than a use when the recipe name ends the
+     * code span and a marker word follows it: "a `just merge-main`-style
+     * recipe" names a recipe that may not exist yet, which is a proposal rather
+     * than a broken instruction. Anything the span goes on to say — arguments,
+     * a pipeline — makes it a command again.
+     */
+    private function isMention(string $recipe, string $span, string $after): bool
+    {
+        if ([] === $this->mentionMarkers || !str_ends_with(rtrim($span), $recipe)) {
+            return false;
+        }
+
+        $markers = implode('|', array_map(preg_quote(...), $this->mentionMarkers));
+
+        return 1 === preg_match('/^[\s-]*(?:'.$markers.')\b/i', $after);
     }
 
     /**

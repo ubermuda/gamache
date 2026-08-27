@@ -99,9 +99,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   like a judgment call. No compiler, linter or test suite reads a Markdown file, so
   nothing else can catch it.
 
-  Pointed at a real project, the check found three dead recipes in one automation
-  document — `just e2e-worktree`, `just merge-main`, `just worktree-sync`, none of which
-  the justfile had defined for months.
+  Naming a recipe is not asserting it exists. "Run `just cs` first" claims the recipe is
+  there; "a `just merge-main`-style recipe" proposes one that is not, and a register of
+  planned automations is written entirely in the second form. A reference is therefore
+  read as a *mention* — and left alone — when the recipe name ends the code span and one
+  of the configurable `mentionMarkers` follows it; an argument or a pipeline in the span
+  makes it a command again, and a fenced block is exempt, because a fence is code. The
+  cost is a class of false negatives: a genuinely deleted recipe written about rather
+  than invoked goes unreported. That is the right way round — a missed finding costs one
+  stale sentence, while a check that reports a proposals file every run gets switched off
+  and then catches nothing at all.
+
+  On a real project's skills the check is silent, which is what a healthy corpus should
+  produce. Renaming a single justfile recipe there reports exactly the seven real
+  references to it and nothing else.
 
   `src/` and `tests/` are deliberately absent from the default path prefixes. Skills
   illustrate naming conventions with paths never meant to resolve — a module called X
