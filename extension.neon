@@ -231,3 +231,7 @@ services:
         class: Gamache\PHPStan\McpToolNameRule
         tags:
             - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\McpToolDelegatedShapeRule
+        tags:
+            - phpstan.rules.rule

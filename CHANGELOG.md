@@ -62,6 +62,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Let the two diverge and finding a reported tool means reading every attribute in the
   module. Nothing else notices, because the server registers whatever string the
   attribute carries — so renaming either side alone ships green.
+- **`McpToolDelegatedShapeRule`: a delegating MCP tool may not restate its query's array shape.**
+  Reports an MCP tool whose `__invoke()` declares an array shape identical to the one the
+  dependency it delegates to already declares. Only an exact restatement counts, and only
+  when every return statement hands off through a property on `$this` — a tool that
+  assembles its own array, wraps the delegated one in a key, or narrows it is declaring a
+  shape of its own. Statements around the returns are irrelevant, so the usual
+  authorization-plus-`try`/`catch` body is still reported.
+
+  A copied shape has no way of staying a copy. Add a key on the handler and the tool's
+  docblock keeps promising the old one — and it is the tool's docblock a caller reads and
+  a schema generator emits, so the drift ships as a documented lie rather than as an
+  error. PHPStan's own return-type check catches a shape that has already drifted from
+  the body producing it; what nothing catches is the duplicate that makes the drift
+  possible, because two identical declarations are both correct on the day they are
+  written.
 
 - **`DeploymentConfigParityCheck`: deployment variables must reach the file an operator copies.**
   Compares two pairs of files, both configurable and both skipped when either half is

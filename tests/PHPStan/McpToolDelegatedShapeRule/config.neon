@@ -1,0 +1,3 @@
+parameters:
+    scanFiles:
+        - %currentWorkingDirectory%/tests/PHPStan/McpToolDelegatedShapeRule/Fixture/McpTool.php
