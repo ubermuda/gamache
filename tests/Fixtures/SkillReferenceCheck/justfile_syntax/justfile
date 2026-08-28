@@ -1,0 +1,18 @@
+# leading comment
+set positional-arguments
+import "other.just"
+
+prod_image := env("X", "y")
+
+@quiet:
+    echo q
+
+worktree-up name="":
+    echo up
+
+shell: (exec "bash")
+
+exec *args:
+    echo "$@"
+
+alias up := worktree-up

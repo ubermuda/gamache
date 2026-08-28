@@ -82,6 +82,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only when the `McpTool` attribute supplies one — but developers and PHPStan do: add a
   key to the handler and PHPStan reports the mismatch against the tool, pointing at the
   copy rather than at the change that broke it.
+- **`SkillReferenceCheck`: a skill may not name tooling that no longer exists.**
+  Scans agent skill files — `.claude/skills/*/SKILL.md` by default, configurable — for
+  references that resolve to nothing: a `just` recipe the justfile does not define, and a
+  file path that is not there. Both reference kinds are read only from fenced blocks and
+  inline code spans, because a skill is prose about a codebase and `just a moment` is
+  English while `just cs` is a command; `just` names a recipe only in command position.
+  Recipe parameters, dependencies and `alias x := y` all count as definitions, while `set`
+  directives and `name := value` assignments do not.
+
+  What rots is the link that was never made. A skill tells an agent which command to run
+  and which file to open, and nothing connects it to the thing it names — rename a recipe
+  and the skill still reads as authoritative, so the next session follows an instruction
+  that cannot work. It surfaces as an agent improvising rather than as a broken build,
+  which is the expensive kind of failure: no gate is red, and the wrong behaviour looks
+  like a judgment call. No compiler, linter or test suite reads a Markdown file, so
+  nothing else can catch it.
+
+  Naming a recipe is not asserting it exists. "Run `just cs` first" claims the recipe is
+  there; "a `just merge-main`-style recipe" proposes one that is not, and a register of
+  planned automations is written entirely in the second form. A reference is therefore
+  read as a *mention* — and left alone — when the recipe name ends the code span and one
+  of the configurable `mentionMarkers` follows it; an argument or a pipeline in the span
+  makes it a command again, and a fenced block is exempt, because a fence is code. The
+  cost is a class of false negatives: a genuinely deleted recipe written about rather
+  than invoked goes unreported. That is the right way round — a missed finding costs one
+  stale sentence, while a check that reports a proposals file every run gets switched off
+  and then catches nothing at all.
+
+  On a real project's skills the check is silent, which is what a healthy corpus should
+  produce. Renaming a single justfile recipe there reports exactly the seven real
+  references to it and nothing else.
+
+  `src/` and `tests/` are deliberately absent from the default path prefixes. Skills
+  illustrate naming conventions with paths never meant to resolve — a module called X
+  importing from a module called Y — and on that same project every finding under `src/`
+  was one of those and none was rot. `ignoredRecipes` and `ignoredPaths` cover the rest,
+  and a project with no justfile has its recipe references left alone rather than all
+  reported as missing.
 
 - **`DeploymentConfigParityCheck`: deployment variables must reach the file an operator copies.**
   Compares two pairs of files, both configurable and both skipped when either half is
