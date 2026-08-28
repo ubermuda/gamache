@@ -7,6 +7,9 @@ parameters:
             - 'IS_AUTHENTICATED'
             - 'PUBLIC_ACCESS'
             - 'IS_IMPERSONATOR'
+        # Enforcement starts at this YYYYMMDDHHMMSS migration timestamp; earlier
+        # VersionYYYYMMDDHHMMSS migrations are skipped. Empty = enforce all.
+        migrationsEnforcedFrom: ''
         translationCallSites: []
         translationAttributeSites: []
         repositoryNamingExcludedClasses:
@@ -38,6 +41,7 @@ parametersSchema:
         controllerBaseClass: string()
         csrfTokenAttributeClass: string()
         isGrantedAllowedAttributePrefixes: listOf(string())
+        migrationsEnforcedFrom: string()
         translationCallSites: listOf(structure([
             class: string()
             method: string()
@@ -76,6 +80,12 @@ services:
             - phpstan.rules.rule
     -
         class: Gamache\PHPStan\MigrationDescriptionRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\MigrationExpandContractRule
+        arguments:
+            enforcedFrom: %gamache.migrationsEnforcedFrom%
         tags:
             - phpstan.rules.rule
     -

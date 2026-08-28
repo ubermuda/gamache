@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`MigrationExpandContractRule`: a release may only expand the schema.**
+  Flags destructive DDL in a Doctrine migration's `up()` — `DROP TABLE`, dropping a
+  column or a constraint, renaming a table or column, changing a column's type, and
+  `SET NOT NULL` on a column with no default to fill it. Identifier
+  `migration.destructiveSql`.
+
+  The failure it prevents belongs to deployments that run
+  `doctrine:migrations:migrate` unconditionally on every release, including the release
+  that rolls an image *back*. A rollback lands on the newer schema with the older code
+  on top of it, so every release has to leave a schema its predecessor tolerates:
+  expansions ship now, the contraction that removes the old shape ships later, once no
+  deployed version still reads it. Nothing else in the toolchain notices — the
+  migration runs cleanly, and the breakage only appears on a rollback nobody is
+  rehearsing at the time.
+
+  A statement that really is that later release says so in a comment above it,
+  `// @contract-phase: <why nothing reads the old shape>`, and the reason is mandatory
+  (`migration.contractPhaseWithoutReason`) because the claim is about what deployed
+  code reads, which nothing else in the diff can show. The same marker in the docblock
+  of `up()` covers the whole method. Three shapes the migration puts in place itself
+  are never contractions and pass unmarked: anything done to a table the same `up()` has
+  already created, a constraint dropped and re-added under the same name, and
+  `SET NOT NULL` on a column the same `up()` gives a non-null `DEFAULT`. The table
+  exemption is order-sensitive — a `DROP TABLE t` written before a `CREATE TABLE t` is
+  dropping the table that was already there — while a constraint dropped and rebuilt in
+  that order is the legitimate case.
+
+  `gamache.migrationsEnforcedFrom` names the `YYYYMMDDHHMMSS` timestamp at which
+  enforcement begins, for a project whose back-catalogue has already shipped: a
+  `VersionYYYYMMDDHHMMSS` migration earlier than it is skipped, one at or after it is
+  checked, and every future migration is covered without revisiting the setting. Unset
+  enforces every migration — empty is not "rule off" here — and a class name carrying no
+  readable timestamp is enforced whatever the cutoff, since a cutoff that exempts what it
+  cannot parse stops meaning anything. A value that is not a 14-digit timestamp is refused
+  when the rule is built rather than defaulted, because a typo that quietly disables the
+  rule is the worst outcome.
+
+  The analysis reads string literals — heredocs and nowdocs included — so SQL built at
+  runtime is invisible, and the dialect understood is the PostgreSQL/ANSI one Doctrine
+  emits. `migrations/` must be in the consuming project's PHPStan `paths:` for the rule
+  to run at all.
+
 - **`DeploymentConfigParityCheck`: deployment variables must reach the file an operator copies.**
   Compares two pairs of files, both configurable and both skipped when either half is
   absent: every `variable "x" {` in `terraform/variables.tf` must be named somewhere in
