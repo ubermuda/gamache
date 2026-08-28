@@ -1,6 +1,6 @@
 # PHPStan rules
 
-Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 32 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
+Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 33 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
 
 Every error carries an identifier, so you can opt out of a single rule with PHPStan's `ignoreErrors`:
 
@@ -22,6 +22,7 @@ All rules live in the `Gamache\PHPStan` namespace.
 **Entities & migrations:** [EntityAsymmetricVisibilityRule](#entityasymmetricvisibilityrule) · [MigrationDescriptionRule](#migrationdescriptionrule) · [MigrationExpandContractRule](#migrationexpandcontractrule) · [RepositoryParameterNameRule](#repositoryparameternamerule)
 **Security:** [VoterNotReadonlyRule](#voternotreadonlyrule)
 **Translations:** [TranslationCallSiteRule](#translationcallsiterule) · [TranslationAttributeRule](#translationattributerule)
+**MCP:** [McpToolNameRule](#mcptoolnamerule)
 **Misc:** [EnumKebabCaseRule](#enumkebabcaserule) · [PassThroughHelperRule](#passthroughhelperrule)
 
 ---
@@ -910,6 +911,34 @@ parameters:
 
 // GOOD
 #[Assert\NotBlank(message: 'account.validator.field_required')]
+```
+
+---
+
+## McpToolNameRule
+
+**Identifier:** `mcp.toolNameMismatch`
+
+An MCP tool class and the tool name its `#[McpTool]` attribute declares must agree: `DocumentReviseTool` declares `document_revise` — the class's short name minus a trailing `Tool`, snake_cased.
+
+The tool name is the only handle a caller has, and the class name is the only handle everyone else has: a grep, a stack trace, a bug report naming the tool that failed. Let them diverge and looking up a reported tool means reading every attribute in the module. Nothing else notices — the server registers whatever string the attribute carries, so renaming one side ships green.
+
+The name is read from the `name:` argument, named or first-positional. A tool that publishes its own name as a constant (`name: self::NAME`) is read through the constant; a name built any other way is skipped, since it cannot be compared.
+
+> `MCP tool DocumentReviseTool declares the tool name "document_update"; expected "document_revise". Rename the tool, or rename the class to DocumentUpdateTool.`
+
+```php
+// BAD — the class was renamed and the tool name left behind
+#[McpTool(name: 'document_update')]
+final readonly class DocumentReviseTool {}
+
+// BAD — camelCase where the convention is snake_case
+#[McpTool(name: 'documentGetReview')]
+final readonly class DocumentGetReviewTool {}
+
+// GOOD
+#[McpTool(name: 'document_revise')]
+final readonly class DocumentReviseTool {}
 ```
 
 ---

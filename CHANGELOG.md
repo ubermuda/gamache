@@ -50,6 +50,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runtime is invisible, and the dialect understood is the PostgreSQL/ANSI one Doctrine
   emits. `migrations/` must be in the consuming project's PHPStan `paths:` for the rule
   to run at all.
+- **`McpToolNameRule`: an MCP tool class name must match the tool name it declares.**
+  `DocumentReviseTool` declares `document_revise` — the class's short name minus a
+  trailing `Tool`, snake_cased. The name is read from the `#[McpTool]` attribute's
+  `name:` argument, named or first-positional, and through a `self::NAME` constant for
+  a tool that publishes its own name that way. A name built any other way is skipped,
+  since it cannot be compared.
+
+  The tool name is the only handle a caller has, and the class name is the only handle
+  everyone else has: a grep, a stack trace, a bug report naming the tool that failed.
+  Let the two diverge and finding a reported tool means reading every attribute in the
+  module. Nothing else notices, because the server registers whatever string the
+  attribute carries — so renaming either side alone ships green.
 
 - **`DeploymentConfigParityCheck`: deployment variables must reach the file an operator copies.**
   Compares two pairs of files, both configurable and both skipped when either half is
