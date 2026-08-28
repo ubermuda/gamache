@@ -116,12 +116,12 @@ final readonly class MigrationExpandContractRule implements Rule
             ->build();
         }
 
-        foreach ($statements as [$sql, $line]) {
+        foreach ($statements as $position => [$sql, $line]) {
             if (null !== $this->markerReason($markers, $line)) {
                 continue;
             }
 
-            $contraction = $this->contraction($sql, $expansions);
+            $contraction = $this->contraction($sql, $expansions, $position);
             if (null === $contraction) {
                 continue;
             }
@@ -185,9 +185,14 @@ final readonly class MigrationExpandContractRule implements Rule
      * removed, and a column with a non-null default stays writable by code that
      * does not know it exists.
      *
+     * Each table is recorded with the position of the statement that creates it,
+     * because only what follows that statement is working on a table this
+     * migration owns: a `DROP TABLE t` written *before* `CREATE TABLE t` drops
+     * the one that was already there, data and all.
+     *
      * @param list<array{string, int}> $statements
      *
-     * @return array{tables: list<string>, constraints: list<string>, defaults: list<string>}
+     * @return array{tables: array<string, int>, constraints: list<string>, defaults: list<string>}
      */
     private function expansions(array $statements): array
     {
@@ -195,9 +200,9 @@ final readonly class MigrationExpandContractRule implements Rule
         $constraints = [];
         $defaults = [];
 
-        foreach ($statements as [$sql]) {
+        foreach ($statements as $position => [$sql]) {
             if (preg_match('/^CREATE TABLE (?:IF NOT EXISTS )?"?('.self::IDENTIFIER.')"?/i', $sql, $matches)) {
-                $tables[] = strtolower($matches[1]);
+                $tables[strtolower($matches[1])] ??= $position;
 
                 continue;
             }
@@ -230,14 +235,14 @@ final readonly class MigrationExpandContractRule implements Rule
     }
 
     /**
-     * @param array{tables: list<string>, constraints: list<string>, defaults: list<string>} $expansions
+     * @param array{tables: array<string, int>, constraints: list<string>, defaults: list<string>} $expansions
      *
      * @return string|null the contraction this statement performs, or null if it only expands
      */
-    private function contraction(string $sql, array $expansions): ?string
+    private function contraction(string $sql, array $expansions, int $position): ?string
     {
         if (preg_match('/^DROP TABLE (?:IF EXISTS )?"?('.self::IDENTIFIER.')"?/i', $sql, $matches)) {
-            return \in_array(strtolower($matches[1]), $expansions['tables'], true)
+            return $this->createdEarlier($matches[1], $expansions['tables'], $position)
                 ? null
                 : sprintf('Migration up() drops table "%s".', $matches[1]);
         }
@@ -249,7 +254,7 @@ final readonly class MigrationExpandContractRule implements Rule
         $table = $matches[1];
         $rest = $matches[2];
 
-        if (\in_array(strtolower($table), $expansions['tables'], true)) {
+        if ($this->createdEarlier($table, $expansions['tables'], $position)) {
             return null;
         }
 
@@ -291,6 +296,14 @@ final readonly class MigrationExpandContractRule implements Rule
         }
 
         return null;
+    }
+
+    /** @param array<string, int> $tables */
+    private function createdEarlier(string $table, array $tables, int $position): bool
+    {
+        $created = $tables[strtolower($table)] ?? null;
+
+        return null !== $created && $created < $position;
     }
 
     /**

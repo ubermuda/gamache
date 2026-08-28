@@ -29,9 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`migration.contractPhaseWithoutReason`) because the claim is about what deployed
   code reads, which nothing else in the diff can show. The same marker in the docblock
   of `up()` covers the whole method. Three shapes the migration puts in place itself
-  are never contractions and pass unmarked: anything done to a table the same `up()`
-  creates, a constraint dropped and re-added under the same name, and `SET NOT NULL` on
-  a column the same `up()` gives a non-null `DEFAULT`.
+  are never contractions and pass unmarked: anything done to a table the same `up()` has
+  already created, a constraint dropped and re-added under the same name, and
+  `SET NOT NULL` on a column the same `up()` gives a non-null `DEFAULT`. The table
+  exemption is order-sensitive — a `DROP TABLE t` written before a `CREATE TABLE t` is
+  dropping the table that was already there — while a constraint dropped and rebuilt in
+  that order is the legitimate case.
 
   `gamache.migrationsEnforcedFrom` names the `YYYYMMDDHHMMSS` timestamp at which
   enforcement begins, for a project whose back-catalogue has already shipped: a

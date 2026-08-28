@@ -725,9 +725,12 @@ reports the contracting ones:
 releases only roll forward.
 
 Three shapes the migration itself puts in place are not contractions, and pass:
-anything done to a table the same `up()` creates, a constraint dropped and re-added
-under the same name (Doctrine's foreign-key rebuild), and `SET NOT NULL` on a column
-the same `up()` gives a non-null `DEFAULT`.
+anything done to a table the same `up()` has already created, a constraint dropped and
+re-added under the same name (Doctrine's foreign-key rebuild), and `SET NOT NULL` on a
+column the same `up()` gives a non-null `DEFAULT`. The table exemption is order-sensitive
+and the other two are not: a `DROP TABLE t` written *before* a `CREATE TABLE t` is
+dropping the table that was already there, data and all, while a constraint or an index
+is legitimately dropped and rebuilt in that order.
 
 ```php
 // BAD — the previous image still writes rows without a sequence
@@ -800,9 +803,9 @@ therefore covered without touching the setting again, and an old migration edite
 stays exempt because its name — not its mtime — decides.
 
 The accepted format is the 14-digit `YYYYMMDDHHMMSS` timestamp Doctrine puts in the
-class name, quoted so NEON reads it as a string. Anything else is refused when the rule
-is built, rather than falling back to a default: a typo that silently disables the rule
-is worse than a configuration error.
+class name, quoted so NEON reads it as a string. Anything else aborts the analysis with
+a message naming the parameter, rather than falling back to a default: a typo that
+silently disables the rule is worse than a run that stops.
 
 Two defaults are deliberate:
 

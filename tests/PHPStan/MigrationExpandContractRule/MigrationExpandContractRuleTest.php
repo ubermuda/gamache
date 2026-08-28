@@ -69,6 +69,13 @@ final class MigrationExpandContractRuleTest extends RuleTestCase
         ]);
     }
 
+    public function test_a_table_recreated_after_being_dropped_is_reported(): void
+    {
+        $this->analyse([__DIR__.'/Fixture/recreated_table.php'], [
+            ['Migration up() drops table "projects". '.self::ADVICE, 18],
+        ]);
+    }
+
     public function test_no_cutoff_reports_every_migration(): void
     {
         $this->analyse([__DIR__.'/Fixture/timestamped.php'], [
