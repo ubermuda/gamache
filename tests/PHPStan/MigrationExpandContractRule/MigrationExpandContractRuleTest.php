@@ -15,9 +15,11 @@ final class MigrationExpandContractRuleTest extends RuleTestCase
 {
     private const string ADVICE = 'A release may only expand the schema, so a rollback finds one the previous image tolerates; ship the contraction in a later release and mark it "// @contract-phase: <why nothing reads the old shape>" on the line above.';
 
+    private string $enforcedFrom = '';
+
     protected function getRule(): Rule
     {
-        return new MigrationExpandContractRule();
+        return new MigrationExpandContractRule($this->enforcedFrom);
     }
 
     public function test_an_expanding_migration_passes(): void
@@ -65,5 +67,54 @@ final class MigrationExpandContractRuleTest extends RuleTestCase
             ['Migration up() drops column "legacy_avatar" from table "profiles". '.self::ADVICE, 21],
             ['Migration up() drops column "legacy_bio" from table "profiles". '.self::ADVICE, 22],
         ]);
+    }
+
+    public function test_no_cutoff_reports_every_migration(): void
+    {
+        $this->analyse([__DIR__.'/Fixture/timestamped.php'], [
+            ['Migration up() drops column "legacy_slug" from table "profiles". '.self::ADVICE, 18],
+        ]);
+    }
+
+    public function test_a_migration_older_than_the_cutoff_is_skipped(): void
+    {
+        $this->enforcedFrom = '20260102000000';
+
+        $this->analyse([__DIR__.'/Fixture/timestamped.php'], []);
+    }
+
+    public function test_a_migration_at_the_cutoff_is_reported(): void
+    {
+        $this->enforcedFrom = '20260101000000';
+
+        $this->analyse([__DIR__.'/Fixture/timestamped.php'], [
+            ['Migration up() drops column "legacy_slug" from table "profiles". '.self::ADVICE, 18],
+        ]);
+    }
+
+    public function test_a_migration_after_the_cutoff_is_reported(): void
+    {
+        $this->enforcedFrom = '20251231235959';
+
+        $this->analyse([__DIR__.'/Fixture/timestamped.php'], [
+            ['Migration up() drops column "legacy_slug" from table "profiles". '.self::ADVICE, 18],
+        ]);
+    }
+
+    public function test_a_class_name_carrying_no_timestamp_is_reported_whatever_the_cutoff(): void
+    {
+        $this->enforcedFrom = '20991231235959';
+
+        $this->analyse([__DIR__.'/Fixture/backfilled_not_null.php'], [
+            ['Migration up() makes column "sequence" on table "reviews" NOT NULL with no default to fill it. '.self::ADVICE, 20],
+        ]);
+    }
+
+    public function test_a_cutoff_that_is_not_a_timestamp_is_refused(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('gamache.migrationsEnforcedFrom must be a YYYYMMDDHHMMSS timestamp');
+
+        new MigrationExpandContractRule('2026-08-27');
     }
 }

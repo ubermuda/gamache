@@ -697,6 +697,7 @@ public function getDescription(): string
 ## MigrationExpandContractRule
 
 **Identifiers:** `migration.destructiveSql`, `migration.contractPhaseWithoutReason`
+**Configured by:** `gamache.migrationsEnforcedFrom`
 
 A release may only *expand* the schema. Deployments that run
 `doctrine:migrations:migrate` on every release run it on the release that rolls an
@@ -783,16 +784,34 @@ The rule only runs on files PHPStan analyses, so `migrations/` has to be in the
 `paths:` of the consuming project's `phpstan.neon`. It is easy to add a rule that
 polices migrations and never see it fire because the directory was never in scope.
 
-An existing back-catalogue of migrations will report; those releases have shipped and
-cannot be reshaped. Silence them per path rather than by editing history:
+An existing back-catalogue will report, and those releases have shipped everywhere and
+cannot be reshaped. Say where enforcement begins instead of listing exceptions:
 
 ```neon
 parameters:
-    ignoreErrors:
-        -
-            identifier: migration.destructiveSql
-            path: migrations/Version2025*.php
+    gamache:
+        # the timestamp of the migration after the last one already deployed
+        migrationsEnforcedFrom: '20260401120001'
 ```
+
+A migration whose class name is `VersionYYYYMMDDHHMMSS` with a timestamp *before* that
+value is skipped entirely; one *at or after* it is checked. Every future migration is
+therefore covered without touching the setting again, and an old migration edited today
+stays exempt because its name — not its mtime — decides.
+
+The accepted format is the 14-digit `YYYYMMDDHHMMSS` timestamp Doctrine puts in the
+class name, quoted so NEON reads it as a string. Anything else is refused when the rule
+is built, rather than falling back to a default: a typo that silently disables the rule
+is worse than a configuration error.
+
+Two defaults are deliberate:
+
+- **Unset enforces everything.** Empty is not "rule off" here, unlike the pattern
+  parameters elsewhere in this package. A project that never configures the cutoff gets
+  every migration checked.
+- **A name with no readable timestamp is enforced whatever the cutoff** — a hand-named
+  migration, an unusual prefix. A cutoff that exempted what it could not parse would
+  stop meaning anything.
 
 ---
 

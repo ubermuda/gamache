@@ -33,6 +33,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   creates, a constraint dropped and re-added under the same name, and `SET NOT NULL` on
   a column the same `up()` gives a non-null `DEFAULT`.
 
+  `gamache.migrationsEnforcedFrom` names the `YYYYMMDDHHMMSS` timestamp at which
+  enforcement begins, for a project whose back-catalogue has already shipped: a
+  `VersionYYYYMMDDHHMMSS` migration earlier than it is skipped, one at or after it is
+  checked, and every future migration is covered without revisiting the setting. Unset
+  enforces every migration — empty is not "rule off" here — and a class name carrying no
+  readable timestamp is enforced whatever the cutoff, since a cutoff that exempts what it
+  cannot parse stops meaning anything. A value that is not a 14-digit timestamp is refused
+  when the rule is built rather than defaulted, because a typo that quietly disables the
+  rule is the worst outcome.
+
   The analysis reads string literals — heredocs and nowdocs included — so SQL built at
   runtime is invisible, and the dialect understood is the PostgreSQL/ANSI one Doctrine
   emits. `migrations/` must be in the consuming project's PHPStan `paths:` for the rule

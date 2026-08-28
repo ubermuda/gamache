@@ -103,7 +103,7 @@ includes:
     - vendor/ubermuda/gamache/extension.neon
 ```
 
-This registers all 32 rules at once. Eight parameters control the configurable rules:
+This registers all 32 rules at once. Nine parameters control the configurable rules:
 
 ```neon
 parameters:
@@ -133,6 +133,11 @@ parameters:
         translationAttributeSites:
             - class: 'Symfony\Component\Validator\Constraints\NotBlank'
               argumentNames: ['message']
+
+        # Migration timestamp at which the expand-only rule starts enforcing —
+        # VersionYYYYMMDDHHMMSS migrations before it are skipped
+        # (default: '' = enforce every migration)
+        migrationsEnforcedFrom: '20260401120001'
 
         # Repository classes exempt from the constructor-parameter naming
         # convention (default: Doctrine's base repository classes)

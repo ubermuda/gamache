@@ -36,11 +36,19 @@ use PHPStan\Rules\RuleErrorBuilder;
  * The same marker in the docblock of `up()` covers every statement in it, for a
  * migration that is nothing but a contract phase.
  *
+ * `$enforcedFrom` is a `YYYYMMDDHHMMSS` timestamp at which enforcement begins:
+ * a migration named `VersionYYYYMMDDHHMMSS` earlier than it is skipped, so a
+ * back-catalogue that has already shipped everywhere stays as deployed. Empty
+ * enforces every migration, and a class name carrying no such timestamp is
+ * enforced whatever the cutoff.
+ *
  * @implements Rule<ClassMethod>
  */
 final readonly class MigrationExpandContractRule implements Rule
 {
     private const string MARKER = '@contract-phase';
+
+    private const string TIMESTAMP = '\d{14}';
 
     private const string ADVICE = 'A release may only expand the schema, so a rollback finds one the previous image tolerates; ship the contraction in a later release and mark it "// @contract-phase: <why nothing reads the old shape>" on the line above.';
 
@@ -51,6 +59,16 @@ final readonly class MigrationExpandContractRule implements Rule
      * of them narrows the shape the previous image reads.
      */
     private const array NOT_A_COLUMN = ['INDEX', 'KEY', 'PRIMARY', 'FOREIGN', 'UNIQUE', 'CHECK', 'PARTITION'];
+
+    public function __construct(private string $enforcedFrom = '')
+    {
+        if ('' !== $enforcedFrom && 1 !== preg_match('/^'.self::TIMESTAMP.'$/', $enforcedFrom)) {
+            throw new \InvalidArgumentException(sprintf(
+                'gamache.migrationsEnforcedFrom must be a YYYYMMDDHHMMSS timestamp, or empty to enforce every migration; got "%s".',
+                $enforcedFrom,
+            ));
+        }
+    }
 
     public function getNodeType(): string
     {
@@ -68,6 +86,10 @@ final readonly class MigrationExpandContractRule implements Rule
 
         $classReflection = $scope->getClassReflection();
         if (null === $classReflection || !$classReflection->isSubclassOf(AbstractMigration::class)) {
+            return [];
+        }
+
+        if ($this->shippedBeforeEnforcement($classReflection->getName())) {
             return [];
         }
 
@@ -111,6 +133,23 @@ final readonly class MigrationExpandContractRule implements Rule
         }
 
         return $errors;
+    }
+
+    /**
+     * A name the timestamp cannot be read from is enforced: a cutoff that
+     * exempts whatever it fails to parse stops meaning anything.
+     */
+    private function shippedBeforeEnforcement(string $class): bool
+    {
+        if ('' === $this->enforcedFrom) {
+            return false;
+        }
+
+        if (1 !== preg_match('/(?:^|\\\\)Version('.self::TIMESTAMP.')$/', $class, $matches)) {
+            return false;
+        }
+
+        return $matches[1] < $this->enforcedFrom;
     }
 
     /**
