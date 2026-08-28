@@ -943,6 +943,62 @@ final readonly class DocumentReviseTool {}
 
 ---
 
+## McpToolDelegatedShapeRule
+
+**Identifier:** `mcp.duplicatedDelegatedShape`
+
+An MCP tool whose `__invoke()` hands its work to an injected query or handler must not restate the array shape that dependency already declares.
+
+The shape is then written down twice, and the two copies have to be edited in lockstep. No MCP client ever reads the second one — the PHP SDK emits an `outputSchema` only when the `McpTool` attribute supplies one, so the tool's `@return` reaches developers and static analysis, not callers — but that is exactly who pays for it: add a key to the handler and PHPStan reports the mismatch against the tool, pointing at the copy rather than at the change that broke it.
+
+A `@return` that names a type alias **imported from the class the tool delegates to** is accepted. There is one declaration, and the tool's return type follows the handler's by construction. An alias the tool defines for itself with `@phpstan-type`, or imports from a third class, is reported like a literal shape: both are second declarations of their own, free to drift from the handler's. The rule reads the docblock as written, because the resolved type cannot tell an imported alias from a copy of what it stands for — PHPStan resolves both to the same constant array.
+
+The rule reports only an exact restatement, and only when **every** return statement delegates through a property on `$this` — `($this->handler)(…)` or `$this->handler->query(…)`. A tool that assembles its own array, wraps the delegated one in a key, or narrows it, is declaring a shape of its own: the same text for a different reason. Statements around the returns are irrelevant, so the usual authorization-plus-`try`/`catch` body is still reported.
+
+A shape that has *already* drifted is not this rule's job — PHPStan's own return-type check catches a declared shape the body does not produce. What it cannot see is the copy that makes drift possible, because two identical declarations are both correct today.
+
+> `MCP tool App\Module\Review\Mcp\DocumentGetReviewTool::__invoke() restates the array shape $this->showReview already declares. Import that shape with @phpstan-import-type instead of restating it.`
+
+```php
+// BAD — the handler already declares this, verbatim
+#[McpTool(name: 'document_get_review')]
+final readonly class DocumentGetReviewTool
+{
+    public function __construct(private ShowReviewHandler $showReview) {}
+
+    /** @return array{status: string, verdict: string|null, version: int} */
+    public function __invoke(string $documentId): array
+    {
+        return ($this->showReview)($documentId);
+    }
+}
+
+// GOOD — one declaration, named where the handler declares it
+/**
+ * @phpstan-import-type ReviewPayload from ShowReviewHandler
+ */
+#[McpTool(name: 'document_get_review')]
+final readonly class DocumentGetReviewTool
+{
+    public function __construct(private ShowReviewHandler $showReview) {}
+
+    /** @return ReviewPayload */
+    public function __invoke(string $documentId): array
+    {
+        return ($this->showReview)($documentId);
+    }
+}
+
+// ALSO GOOD — the tool declares what it adds, not what it forwards
+/** @return array{review: array{status: string, verdict: string|null, version: int}} */
+public function __invoke(string $documentId): array
+{
+    return ['review' => ($this->showReview)($documentId)];
+}
+```
+
+---
+
 ## EnumKebabCaseRule
 
 **Identifier:** `enum.notKebabCase`

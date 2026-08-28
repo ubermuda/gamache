@@ -70,13 +70,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shape of its own. Statements around the returns are irrelevant, so the usual
   authorization-plus-`try`/`catch` body is still reported.
 
-  A copied shape has no way of staying a copy. Add a key on the handler and the tool's
-  docblock keeps promising the old one — and it is the tool's docblock a caller reads and
-  a schema generator emits, so the drift ships as a documented lie rather than as an
-  error. PHPStan's own return-type check catches a shape that has already drifted from
-  the body producing it; what nothing catches is the duplicate that makes the drift
-  possible, because two identical declarations are both correct on the day they are
-  written.
+  A `@return` naming a type alias the tool imports from the class it delegates to is
+  accepted: there is one declaration, and the tool's return type follows the handler's by
+  construction. An alias the tool defines for itself, or imports from a third class, is
+  reported like a literal — both are second declarations, free to drift. The rule reads
+  the docblock as written, because the resolved type cannot tell an imported alias from a
+  copy of what it stands for.
+
+  The shape is otherwise written down twice, and the two copies have to be edited in
+  lockstep. No MCP client ever reads the second one — the PHP SDK emits an `outputSchema`
+  only when the `McpTool` attribute supplies one — but developers and PHPStan do: add a
+  key to the handler and PHPStan reports the mismatch against the tool, pointing at the
+  copy rather than at the change that broke it.
 
 - **`DeploymentConfigParityCheck`: deployment variables must reach the file an operator copies.**
   Compares two pairs of files, both configurable and both skipped when either half is
