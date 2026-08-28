@@ -79,6 +79,10 @@ services:
         tags:
             - phpstan.rules.rule
     -
+        class: Gamache\PHPStan\MigrationExpandContractRule
+        tags:
+            - phpstan.rules.rule
+    -
         class: Gamache\PHPStan\ApiRouteConsistencyRule
         tags:
             - phpstan.rules.rule

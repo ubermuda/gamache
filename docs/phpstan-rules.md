@@ -1,6 +1,6 @@
 # PHPStan rules
 
-Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 29 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
+Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 32 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
 
 Every error carries an identifier, so you can opt out of a single rule with PHPStan's `ignoreErrors`:
 
@@ -19,7 +19,7 @@ All rules live in the `Gamache\PHPStan` namespace.
 **Messenger:** [MessengerHandlerNamespaceRule](#messengerhandlernamespacerule)
 **Templates:** [ModuleTemplateNamespaceRule](#moduletemplatenamespacerule)
 **Forms & DTOs:** [BuildFormConstraintsRule](#buildformconstraintsrule) · [FormDataClassNotEntityRule](#formdataclassnotentityrule) · [DtoRequestSuffixRule](#dtorequestsuffixrule) · [NotBlankNullableRule](#notblanknullablerule)
-**Entities & migrations:** [EntityAsymmetricVisibilityRule](#entityasymmetricvisibilityrule) · [MigrationDescriptionRule](#migrationdescriptionrule) · [RepositoryParameterNameRule](#repositoryparameternamerule)
+**Entities & migrations:** [EntityAsymmetricVisibilityRule](#entityasymmetricvisibilityrule) · [MigrationDescriptionRule](#migrationdescriptionrule) · [MigrationExpandContractRule](#migrationexpandcontractrule) · [RepositoryParameterNameRule](#repositoryparameternamerule)
 **Security:** [VoterNotReadonlyRule](#voternotreadonlyrule)
 **Translations:** [TranslationCallSiteRule](#translationcallsiterule) · [TranslationAttributeRule](#translationattributerule)
 **Misc:** [EnumKebabCaseRule](#enumkebabcaserule) · [PassThroughHelperRule](#passthroughhelperrule)
@@ -690,6 +690,108 @@ public function getDescription(): string
 {
     return 'Create users table';
 }
+```
+
+---
+
+## MigrationExpandContractRule
+
+**Identifiers:** `migration.destructiveSql`, `migration.contractPhaseWithoutReason`
+
+A release may only *expand* the schema. Deployments that run
+`doctrine:migrations:migrate` on every release run it on the release that rolls an
+image *back* too, so a rollback lands on the newer schema with the older code on top
+of it: the previous image has to tolerate whatever the last one did. Adding a table,
+a column or a nullable field is tolerable. Dropping, renaming or narrowing one is
+not, and belongs in a later release, once no deployed version still reads the old
+shape.
+
+> `Migration up() drops column "<column>" from table "<table>". A release may only expand the schema, so a rollback finds one the previous image tolerates; ship the contraction in a later release and mark it "// @contract-phase: <why nothing reads the old shape>" on the line above.`
+
+The rule reads the SQL string literals passed to `$this->addSql()` in `up()` and
+reports the contracting ones:
+
+| Flagged | Why the previous image breaks |
+|---|---|
+| `DROP TABLE t` | it still selects from the table |
+| `ALTER TABLE t DROP c` / `DROP COLUMN c` | it still selects the column |
+| `ALTER TABLE t DROP CONSTRAINT c` | the constraint is gone from under code that assumes it |
+| `ALTER TABLE t RENAME TO u`, `RENAME COLUMN a TO b` | it addresses the old name |
+| `ALTER TABLE t ALTER c TYPE ...` | a narrowed type rejects values it writes |
+| `ALTER TABLE t ALTER c SET NOT NULL` | it inserts rows without that column |
+
+`down()` is not analysed: it is destructive by definition, and never runs where
+releases only roll forward.
+
+Three shapes the migration itself puts in place are not contractions, and pass:
+anything done to a table the same `up()` creates, a constraint dropped and re-added
+under the same name (Doctrine's foreign-key rebuild), and `SET NOT NULL` on a column
+the same `up()` gives a non-null `DEFAULT`.
+
+```php
+// BAD — the previous image still writes rows without a sequence
+$this->addSql('ALTER TABLE reviews ADD sequence INT DEFAULT NULL');
+$this->addSql('UPDATE reviews SET sequence = ...');
+$this->addSql('ALTER TABLE reviews ALTER COLUMN sequence SET NOT NULL');
+
+// GOOD — a default makes the column writable by code that does not know it exists
+$this->addSql('ALTER TABLE reviews ADD sequence INT DEFAULT 0 NOT NULL');
+```
+
+### Opting out
+
+A statement that really is the contract phase of an earlier expansion says so in a
+comment on the line above it, and says why:
+
+```php
+// @contract-phase: nothing has read profiles.legacy_slug since the release before this one
+$this->addSql('ALTER TABLE profiles DROP legacy_slug');
+```
+
+The same marker in the docblock of `up()` covers every statement in it, for a
+migration that is nothing but a contract phase. The reason is mandatory — a bare
+`@contract-phase` is reported under `migration.contractPhaseWithoutReason` — because
+the claim being made is about what the deployed code reads, which nothing else in the
+diff can show. Markers must lead the statement: a comment written after one on the
+same line attaches to the *next* statement, so the rule ignores it rather than exempt
+something nobody meant to exempt.
+
+### What it cannot see
+
+The analysis is over string literals, so SQL built at runtime — concatenated,
+interpolated, or passed through a variable — is invisible. Single and double-quoted
+strings, heredocs and nowdocs are all read; anything else is skipped silently. Each
+literal is read as one statement, so a second `;`-separated statement in the same
+`addSql()` is not classified — Doctrine emits one statement per call.
+
+The syntax understood is the PostgreSQL/ANSI dialect Doctrine emits. MySQL's
+`CHANGE` and `MODIFY` forms are not recognised, and `ALTER TABLE ... DROP INDEX|KEY|
+PRIMARY|FOREIGN|UNIQUE|CHECK|PARTITION` is deliberately ignored rather than mistaken
+for a column drop.
+
+Widening a type is safe and narrowing one is not, but which of the two an
+`ALTER ... TYPE` performs depends on the schema it starts from, which a static
+analyser does not have. Both are reported; a widening carries a marker saying so.
+
+Deleted rows (`DELETE`, `TRUNCATE`) and added constraints (a new `UNIQUE` index, a
+`CHECK`) can break a rollback too, and are not reported — the first is data rather
+than shape, and the second is far more often a legitimate expansion than a hazard.
+
+### Enabling it
+
+The rule only runs on files PHPStan analyses, so `migrations/` has to be in the
+`paths:` of the consuming project's `phpstan.neon`. It is easy to add a rule that
+polices migrations and never see it fire because the directory was never in scope.
+
+An existing back-catalogue of migrations will report; those releases have shipped and
+cannot be reshaped. Silence them per path rather than by editing history:
+
+```neon
+parameters:
+    ignoreErrors:
+        -
+            identifier: migration.destructiveSql
+            path: migrations/Version2025*.php
 ```
 
 ---
