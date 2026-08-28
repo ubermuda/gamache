@@ -62,6 +62,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Let the two diverge and finding a reported tool means reading every attribute in the
   module. Nothing else notices, because the server registers whatever string the
   attribute carries — so renaming either side alone ships green.
+- **`McpToolDelegatedShapeRule`: a delegating MCP tool may not restate its query's array shape.**
+  Reports an MCP tool whose `__invoke()` declares an array shape identical to the one the
+  dependency it delegates to already declares. Only an exact restatement counts, and only
+  when every return statement hands off through a property on `$this` — a tool that
+  assembles its own array, wraps the delegated one in a key, or narrows it is declaring a
+  shape of its own. Statements around the returns are irrelevant, so the usual
+  authorization-plus-`try`/`catch` body is still reported.
+
+  A `@return` naming a type alias the tool imports from the class it delegates to is
+  accepted: there is one declaration, and the tool's return type follows the handler's by
+  construction. An alias the tool defines for itself, or imports from a third class, is
+  reported like a literal — both are second declarations, free to drift. The rule reads
+  the docblock as written, because the resolved type cannot tell an imported alias from a
+  copy of what it stands for.
+
+  The shape is otherwise written down twice, and the two copies have to be edited in
+  lockstep. No MCP client ever reads the second one — the PHP SDK emits an `outputSchema`
+  only when the `McpTool` attribute supplies one — but developers and PHPStan do: add a
+  key to the handler and PHPStan reports the mismatch against the tool, pointing at the
+  copy rather than at the change that broke it.
 
 - **`DeploymentConfigParityCheck`: deployment variables must reach the file an operator copies.**
   Compares two pairs of files, both configurable and both skipped when either half is
