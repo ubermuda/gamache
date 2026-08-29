@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`SkillReferenceCheck`: a gitignored path is no longer reported as missing.**
+  A skill saying a worktree's `e2e/node_modules` is a symlink to the main checkout was
+  reported for citing a path that does not exist — but only in CI, where a fresh
+  checkout has no `node_modules`. The author's machine has one, so the failure was
+  invisible to whoever wrote the sentence and to every gate run before the push.
+
+  A gitignored path is a generated artifact, and its absence from a clean tree is
+  expected rather than rot. Candidates now go to `git check-ignore` in one call per
+  skill file, made only when that file already has an unresolved reference, so a clean
+  run spawns nothing. Each candidate is offered with and without a trailing slash,
+  because a directory-only pattern such as `node_modules/` does not match a path git
+  cannot see on disk to be a directory. Tracked paths are not excused — git reports
+  them as not ignored, and a tracked path is one a fresh checkout has.
+
+  Where git cannot answer — no repository, no git installed — nothing is excused and
+  every missing path is still reported, since a check that passes everything outside a
+  checkout is worse than one that is occasionally wrong. A path that exists on disk
+  passes as before, tracked or not.
+
 ### Added
 
 - **`MigrationExpandContractRule`: a release may only expand the schema.**
