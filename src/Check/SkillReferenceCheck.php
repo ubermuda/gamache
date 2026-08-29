@@ -83,7 +83,8 @@ final class SkillReferenceCheck extends AbstractCheck
      * @param list<string>      $ignoredRecipes Recipe names a skill may name although the justfile
      *                                          does not define them, e.g. one a plugin supplies.
      * @param list<string>      $ignoredPaths   Paths a skill may name although they are absent,
-     *                                          e.g. one the project generates or gitignores.
+     *                                          e.g. one the project generates without gitignoring
+     *                                          it. Gitignored paths are excused already.
      * @param Severity          $severity       Error by default: a skill naming a command that does
      *                                          not exist is wrong now, not stylistically off.
      * @param list<string>|null $mentionMarkers Words that, following a recipe reference, mark it as
@@ -128,15 +129,21 @@ final class SkillReferenceCheck extends AbstractCheck
 
         $recipes = $this->recipes($root);
 
+        /** @var list<array{Violation, string|null}> $candidates */
+        $candidates = [];
+
         foreach (self::codeSpans($content) as [$line, $span, $after]) {
-            $this->inspectSpan($span, $after, $line, $absPath, $root, $recipes);
+            $this->inspectSpan($span, $after, $line, $absPath, $root, $recipes, $candidates);
         }
+
+        $this->record($root, $candidates);
     }
 
     /**
-     * @param array<string, true>|null $recipes null when the project has no justfile
+     * @param array<string, true>|null            $recipes    null when the project has no justfile
+     * @param list<array{Violation, string|null}> $candidates
      */
-    private function inspectSpan(string $span, string $after, int $line, string $absPath, string $root, ?array $recipes): void
+    private function inspectSpan(string $span, string $after, int $line, string $absPath, string $root, ?array $recipes, array &$candidates): void
     {
         $tokens = preg_split('/\s+/', trim($span)) ?: [];
         $previous = null;
@@ -144,31 +151,64 @@ final class SkillReferenceCheck extends AbstractCheck
 
         foreach ($tokens as $token) {
             if ($expectRecipe && null !== $recipes && !$this->isMention($token, $span, $after)) {
-                $this->checkRecipe($token, $line, $absPath, $recipes);
+                $violation = $this->recipeViolation($token, $line, $absPath, $recipes);
+                if (null !== $violation) {
+                    $candidates[] = [$violation, null];
+                }
             }
 
             $expectRecipe = 'just' === $token && self::isCommandPosition($previous);
 
             if (!$expectRecipe) {
-                $this->checkPath($token, $line, $absPath, $root);
+                $candidate = $this->pathViolation($token, $line, $absPath, $root);
+                if (null !== $candidate) {
+                    $candidates[] = $candidate;
+                }
             }
 
             $previous = $token;
         }
     }
 
+    /**
+     * Keeps the violations git does not excuse, in the order they were found.
+     * Paths reach git in one call rather than one per path, and only a file
+     * with an unresolved reference in it makes that call at all.
+     *
+     * @param list<array{Violation, string|null}> $candidates
+     */
+    private function record(string $root, array $candidates): void
+    {
+        $paths = [];
+        foreach ($candidates as [, $path]) {
+            if (null !== $path) {
+                $paths[$path] = true;
+            }
+        }
+
+        $ignored = self::gitIgnored($root, array_keys($paths));
+
+        foreach ($candidates as [$violation, $path]) {
+            if (null !== $path && isset($ignored[$path])) {
+                continue;
+            }
+
+            $this->violations[] = $violation;
+        }
+    }
+
     /** @param array<string, true> $recipes */
-    private function checkRecipe(string $token, int $line, string $absPath, array $recipes): void
+    private function recipeViolation(string $token, int $line, string $absPath, array $recipes): ?Violation
     {
         if (1 !== preg_match('/^[a-z][a-z0-9_-]*$/', $token)) {
-            return;
+            return null;
         }
 
         if (isset($recipes[$token]) || \in_array($token, $this->ignoredRecipes, true)) {
-            return;
+            return null;
         }
 
-        $this->violations[] = new Violation(
+        return new Violation(
             sprintf(
                 'References `just %s`, which %s does not define. Rename the reference or restore the recipe.',
                 $token,
@@ -180,28 +220,87 @@ final class SkillReferenceCheck extends AbstractCheck
         );
     }
 
-    private function checkPath(string $token, int $line, string $absPath, string $root): void
+    /** @return array{Violation, string}|null the path is carried alongside so git can excuse it */
+    private function pathViolation(string $token, int $line, string $absPath, string $root): ?array
     {
         $path = self::trimPunctuation($token);
 
         if (!self::hasPrefix($path, $this->pathPrefixes)) {
-            return;
+            return null;
         }
 
         if (strcspn($path, self::UNRESOLVABLE) !== \strlen($path)) {
-            return;
+            return null;
         }
 
         if (file_exists($root.'/'.$path) || \in_array($path, $this->ignoredPaths, true)) {
-            return;
+            return null;
         }
 
-        $this->violations[] = new Violation(
+        $violation = new Violation(
             sprintf('References `%s`, which does not exist. Update the path or restore the file.', $path),
             $this->severity,
             $absPath,
             $line,
         );
+
+        return [$violation, $path];
+    }
+
+    /**
+     * Which of these paths git ignores: a gitignored path is a generated
+     * artifact, so its absence from a fresh checkout is expected rather than
+     * rot. Each candidate is offered with and without a trailing slash, because
+     * a directory-only pattern such as `node_modules/` does not match a path
+     * git cannot see on disk to be a directory. Without an answer from git —
+     * none installed, no repository — nothing is excused.
+     *
+     * @param list<string> $paths
+     *
+     * @return array<string, true>
+     */
+    private static function gitIgnored(string $root, array $paths): array
+    {
+        if ([] === $paths) {
+            return [];
+        }
+
+        $descriptors = [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']];
+        $process = @proc_open(['git', 'check-ignore', '--stdin'], $descriptors, $pipes, $root);
+
+        if (!\is_resource($process)) {
+            return [];
+        }
+
+        $query = '';
+        foreach ($paths as $path) {
+            $query .= $path."\n".$path."/\n";
+        }
+
+        fwrite($pipes[0], $query);
+        fclose($pipes[0]);
+
+        $output = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+
+        $status = proc_close($process);
+
+        if (false === $output || !\in_array($status, [0, 1], true)) {
+            return [];
+        }
+
+        $ignored = [];
+
+        foreach (explode("\n", $output) as $reported) {
+            $path = rtrim(trim($reported), '/');
+            if ('' !== $path) {
+                $ignored[$path] = true;
+            }
+        }
+
+        return $ignored;
     }
 
     /**

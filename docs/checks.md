@@ -354,7 +354,7 @@ A skill tells an agent which command to run and which file to open, and nothing 
 - `pathPrefixes` (default `assets/`, `bin/`, `config/`, `docs/`, `e2e/`, `migrations/`, `public/`, `templates/`, `translations/`) — only tokens starting with one of these are read as a file reference. Everything else in a code span is prose, a flag, or somebody else's path.
 - `mentionMarkers` (default `recipe`, `recipes`, `style`) — words that, following a recipe reference, mark it as *named* rather than *run*. Pass an empty list to assert every reference.
 - `ignoredRecipes` — recipe names a skill may name although the justfile does not define them, e.g. one a plugin supplies.
-- `ignoredPaths` — paths a skill may name although they are absent, e.g. one the project generates or gitignores.
+- `ignoredPaths` — paths a skill may name although they are absent, e.g. one the project generates without gitignoring it. A gitignored path is excused already.
 - `severity` (default `Severity::Error`).
 
 **Naming a recipe is not asserting it exists.** "Run `just cs` first" claims the recipe is there; "a `just merge-main`-style recipe" proposes one that is not. A register of planned automations is written entirely in the second form, so a rule that cannot tell them apart reports that file for doing its job — and the finding is then indistinguishable from the rotted reference the check exists to catch.
@@ -366,6 +366,10 @@ The cost is a class of false negatives: "the `just secrets-scan` recipe" is a me
 Fenced blocks are exempt from this entirely — a fence is code, and code is run.
 
 **What counts as a reference.** A `just` token names a recipe only in command position — at the start of a code span or after `&&`, `||`, `;`, `|` or `(`. Recipe parameters, dependencies and `alias x := y` are all read from the justfile; `set` directives and `name := value` assignments are not recipes and are reported when a skill names one. A path token containing a placeholder, glob or variable (`<`, `>`, `{`, `}`, `$`, `%`, `*`, `?`) is a shape rather than a path and is skipped.
+
+**A gitignored path is never reported.** `e2e/node_modules` is on disk wherever the skill was written and absent from a fresh checkout, so reading its absence as rot fails in CI and nowhere else — invisible to whoever wrote the sentence. Candidates are put to `git check-ignore` in one call per skill file, and only a file that already has an unresolved reference makes that call at all; nothing is spawned for a clean run. Each is offered with and without a trailing slash, since a directory-only pattern such as `node_modules/` does not match a path git cannot see on disk to be a directory. A path that is *tracked* is not excused, whatever the patterns say — git reports it as not ignored, and a tracked path is one a fresh checkout has.
+
+Where git cannot answer — no repository, no git installed — nothing is excused and every missing path is reported, so the check keeps working outside a checkout instead of quietly passing everything. A path that exists on disk passes whether git knows it or not: untracked is still there for the reader to open.
 
 `src/` and `tests/` are deliberately absent from the default prefixes. Skills illustrate naming conventions with paths that were never meant to resolve — a module called X importing from a module called Y, a `CreateIssueHandler.php` that only shows where a handler goes. Pointed at a real project's skills, every finding under `src/` was one of those and none was rot. Add the prefix if your skills cite only files that exist.
 
