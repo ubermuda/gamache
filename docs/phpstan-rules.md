@@ -1,6 +1,6 @@
 # PHPStan rules
 
-Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 34 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
+Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 35 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
 
 Every error carries an identifier, so you can opt out of a single rule with PHPStan's `ignoreErrors`:
 
@@ -23,6 +23,7 @@ All rules live in the `Gamache\PHPStan` namespace.
 **Security:** [VoterNotReadonlyRule](#voternotreadonlyrule)
 **Translations:** [TranslationCallSiteRule](#translationcallsiterule) · [TranslationAttributeRule](#translationattributerule)
 **MCP:** [McpToolNameRule](#mcptoolnamerule)
+**Audit:** [AuditOperationNameRule](#auditoperationnamerule)
 **Misc:** [EnumKebabCaseRule](#enumkebabcaserule) · [PassThroughHelperRule](#passthroughhelperrule)
 
 ---
@@ -995,6 +996,37 @@ public function __invoke(string $documentId): array
 {
     return ['review' => ($this->showReview)($documentId)];
 }
+```
+
+---
+
+## AuditOperationNameRule
+
+**Identifier:** `audit.operationNameShape`
+**Configured by:** `gamache.auditOperations`
+
+An audit operation name is `<module>.<outcome>`: exactly two snake_case segments, one dot between them. The rule reads the first argument of `record()` calls on the configured auditor class.
+
+The name is the only axis an audit trail is filtered on. Let two shapes coexist and a reader who filters by prefix has to know which shape each module picked, so `billing.` returns some of billing and `billing.webhook.` returns the rest. Nothing else notices, because the column is a string and every shape writes and reads back cleanly.
+
+Two things the rule does not see, both deliberate. **A first argument that is not a string literal passes**, so a name routed through a handler's own private `record()` helper reaches the auditor unread — the literal sits one hop away, at the helper's call site, plain to a reviewer and invisible here. **A name passed as a named argument passes** for the same reason: the rule reads the first positional argument only.
+
+`gamache.auditOperations.auditorClass` is the class whose `record()` calls carry a name; an empty string turns the rule off. `gamache.auditOperations.recordMethods` names the methods to read, and defaults to `record`.
+
+> `Audit operation "billing.webhook.received" must be <module>.<outcome>: exactly two snake_case segments separated by one dot.`
+
+```php
+// BAD — three segments
+$this->auditor->record('billing.webhook.received', AuditOutcome::Success);
+
+// BAD — no dot
+$this->auditor->record('billing_comp_granted', AuditOutcome::Success);
+
+// BAD — camelCase where the convention is snake_case
+$this->auditor->record('Billing.compGranted', AuditOutcome::Success);
+
+// GOOD
+$this->auditor->record('billing.webhook_received', AuditOutcome::Success);
 ```
 
 ---
