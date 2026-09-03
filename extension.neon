@@ -1,5 +1,11 @@
 parameters:
     gamache:
+        auditOperations:
+            # Class whose record() calls carry an audit operation name.
+            # Empty = rule off.
+            auditorClass: ''
+            recordMethods:
+                - record
         controllerBaseClass: 'Symfony\Bundle\FrameworkBundle\Controller\AbstractController'
         csrfTokenAttributeClass: ''
         isGrantedAllowedAttributePrefixes:
@@ -38,6 +44,10 @@ parameters:
 
 parametersSchema:
     gamache: structure([
+        auditOperations: structure([
+            auditorClass: string()
+            recordMethods: listOf(string())
+        ])
         controllerBaseClass: string()
         csrfTokenAttributeClass: string()
         isGrantedAllowedAttributePrefixes: listOf(string())
@@ -233,5 +243,12 @@ services:
             - phpstan.rules.rule
     -
         class: Gamache\PHPStan\McpToolDelegatedShapeRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\AuditOperationNameRule
+        arguments:
+            auditorClass: %gamache.auditOperations.auditorClass%
+            recordMethods: %gamache.auditOperations.recordMethods%
         tags:
             - phpstan.rules.rule

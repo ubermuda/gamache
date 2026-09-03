@@ -30,6 +30,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`AuditOperationNameRule`: an audit operation name has two segments.**
+  Flags a `record()` call on the configured auditor class whose first argument is a
+  string literal that is not `<module>.<outcome>` — exactly two snake_case segments
+  with one dot between them. Identifier `audit.operationNameShape`.
+
+  The name is the only axis an audit trail is filtered on. Let a two-segment and a
+  three-segment shape coexist and a reader who filters by prefix has to know which
+  shape each module picked, so `billing.` returns some of billing and
+  `billing.webhook.` returns the rest. Nothing else notices, because the column is a
+  string and every shape writes and reads back cleanly.
+
+  Two things the rule does not read, both deliberate. A first argument that is not a
+  string literal passes, so a name routed through a handler's own private `record()`
+  helper reaches the auditor unread: the literal sits one hop away, at the helper's
+  call site, where it is plain to a reviewer. Resolving that hop is real complexity
+  for a handful of callers, and the cost of not resolving it is a malformed name that
+  re-enters through one of those helpers. A name passed as a named argument passes for
+  the same reason — the rule reads the first positional argument only.
+
+  `gamache.auditOperations.auditorClass` names the class whose `record()` calls carry
+  an operation name, and an empty string, the default, turns the rule off.
+  `gamache.auditOperations.recordMethods` names the methods to read and defaults to
+  `record`.
+
 - **`MigrationExpandContractRule`: a release may only expand the schema.**
   Flags destructive DDL in a Doctrine migration's `up()` — `DROP TABLE`, dropping a
   column or a constraint, renaming a table or column, changing a column's type, and

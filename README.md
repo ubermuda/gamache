@@ -7,7 +7,7 @@ Gamache packages a set of opinionated conventions for Symfony applications and e
 | Surface | What it provides | Docs |
 |---|---|---|
 | `gamache` CLI | 15 project-level checks (config files, templates, translations, …) | [docs/checks.md](docs/checks.md) |
-| PHPStan | 34 rules for controllers, APIs, CQRS commands, forms, templates, routes, entities, translations, security | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
+| PHPStan | 35 rules for controllers, APIs, CQRS commands, forms, templates, routes, entities, translations, security | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
 | PHP-CS-Fixer | 2 custom fixers for attribute formatting | [docs/php-cs-fixer.md](docs/php-cs-fixer.md) |
 | Twig-CS-Fixer | 6 custom rules for templates | [docs/twig-cs-fixer.md](docs/twig-cs-fixer.md) |
 | Rector | 1 custom rule + 2 built-in rules for repository injection and argument ordering | [docs/rector.md](docs/rector.md) |
@@ -103,7 +103,7 @@ includes:
     - vendor/ubermuda/gamache/extension.neon
 ```
 
-This registers all 34 rules at once. Nine parameters control the configurable rules:
+This registers all 35 rules at once. Ten parameters control the configurable rules:
 
 ```neon
 parameters:
@@ -157,6 +157,12 @@ parameters:
         templateNamespaces:
             forbiddenPathPrefix: 'Module/'
             renderMethods: [render, renderView, htmlTemplate, textTemplate]
+
+        # Class whose record() calls carry an audit operation name, which must
+        # read <module>.<outcome> (off when auditorClass is unset)
+        auditOperations:
+            auditorClass: 'App\Module\Audit\Auditor'
+            recordMethods: [record]
 ```
 
 See [docs/phpstan-rules.md](docs/phpstan-rules.md) for every rule, its error identifier, and examples. Rules without parameters cannot be configured individually — use PHPStan's `ignoreErrors` with the rule's error identifier to opt out of one.
