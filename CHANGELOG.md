@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`DeploymentConfigParityCheck`: an optional scan for the operator-facing reference page.**
+  Every file the check already compared is read by a machine. A variable can be declared in
+  `.env`, wired into Terraform, referenced by Compose and named in both templates, and still
+  appear in no prose a human reads. Each existing scan passes, because each compares one
+  machine-read file against another.
+
+  Set `documentationPath` to close that gap. It is empty by default, so an existing project
+  gains no new failure until it opts in. `ignoredAppEnvKeys` carries through, because a
+  variable reaching no deployment needs no operator reference; `undocumentedEnvKeys` covers a
+  variable that does reach one and is documented elsewhere, or named by a shorthand entry a
+  whole-word match cannot find. Both exemption lists are checked for staleness.
+
 ### Fixed
 
 - **`SkillReferenceCheck`: a gitignored path is no longer reported as missing.**
