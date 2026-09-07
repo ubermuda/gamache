@@ -15,6 +15,12 @@ namespace Gamache\Check;
  * application reads can reach no deployment at all. Nothing downstream notices,
  * because every file that would have mentioned it is simply consistent without
  * it.
+ *
+ * A third break survives both scans. Every file above is read by a machine, so a
+ * variable wired correctly through all of them can still be named in no
+ * operator-facing documentation at all. Set `documentationPath` to close that,
+ * and the check then covers the whole path from the application to the person
+ * deploying it.
  */
 final class DeploymentConfigParityCheck extends AbstractCheck
 {
@@ -45,6 +51,17 @@ final class DeploymentConfigParityCheck extends AbstractCheck
      * @param list<string> $ignoredAppEnvKeys         Read by the app but deliberately reaching no
      *                                                deployment: development-only, or already
      *                                                correct at the committed dotenv value.
+     * @param string       $documentationPath         The operator-facing reference page that must
+     *                                                name every variable the app reads. Empty (the
+     *                                                default) disables this scan.
+     * @param list<string> $undocumentedEnvKeys       Exempt from that page, on top of
+     *                                                `$ignoredAppEnvKeys`, which carries through
+     *                                                because a variable reaching no deployment
+     *                                                needs no operator reference. Use this list
+     *                                                for one that does reach a deployment and is
+     *                                                still absent from the page: another document
+     *                                                covers it, or a shorthand entry names it as a
+     *                                                suffix. Both beat weakening the match.
      */
     public function __construct(
         private readonly string $terraformVariablesPath = 'terraform/variables.tf',
@@ -59,6 +76,8 @@ final class DeploymentConfigParityCheck extends AbstractCheck
         private readonly string $terraformReportPath = 'terraform/main.tf',
         private readonly array $moduleProvidedEnvKeys = [],
         private readonly array $ignoredAppEnvKeys = [],
+        private readonly string $documentationPath = '',
+        private readonly array $undocumentedEnvKeys = [],
     ) {
     }
 
@@ -198,6 +217,41 @@ final class DeploymentConfigParityCheck extends AbstractCheck
                 $this->composeFilePath,
             ),
         );
+
+        // A variable can be wired into every deployment and still be invisible to
+        // the person deploying it. The other scans all compare one machine-read
+        // file against another, so they pass in exactly that case.
+        if ('' !== $this->documentationPath) {
+            $this->compare(
+                $root.'/'.$this->documentationPath,
+                $appVars,
+                // A variable exempt from every deployment needs no operator
+                // reference either, so that list carries through rather than
+                // being retyped here.
+                array_merge($this->undocumentedEnvKeys, $this->ignoredAppEnvKeys),
+                fn (string $name): string => sprintf( // @translation-check-ignore
+                    'Environment variable "%s" is read by the application but named nowhere in %s, so an operator has no reference for it.',
+                    $name,
+                    $this->documentationPath,
+                ),
+            );
+
+            foreach ($this->undocumentedEnvKeys as $name) {
+                if (\in_array($name, $appVars, true)) {
+                    continue;
+                }
+
+                $this->violations[] = new Violation(
+                    sprintf( // @translation-check-ignore
+                        'Environment variable "%s" is exempted from %s but the application no longer reads it, so the exemption is stale.',
+                        $name,
+                        $this->documentationPath,
+                    ),
+                    Severity::Error,
+                    $absPath,
+                );
+            }
+        }
 
         // An exemption that outlives the variable it excuses is where the next
         // unwired variable hides. Only this list is a claim about this

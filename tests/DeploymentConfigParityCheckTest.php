@@ -26,6 +26,64 @@ final class DeploymentConfigParityCheckTest extends TestCase
         self::assertEmpty($result->violations);
     }
 
+    public function test_documentation_scan_is_off_until_a_path_is_given(): void
+    {
+        // Every other project using this check gains no new failure, which is
+        // why the option is opt-in rather than defaulted to a conventional path.
+        $check = new DeploymentConfigParityCheck(
+            ignoredAppEnvKeys: ['MESSENGER_TRANSPORT_DSN', 'COMPOSE_PROJECT_NAME'],
+        );
+        $check->run($this->fixtures.'/doc_missing/.env');
+        self::assertEmpty($check->getResult()->violations);
+    }
+
+    public function test_passes_when_the_reference_page_names_every_variable(): void
+    {
+        $check = new DeploymentConfigParityCheck(
+            ignoredAppEnvKeys: ['MESSENGER_TRANSPORT_DSN', 'COMPOSE_PROJECT_NAME'],
+            documentationPath: 'docs/reference/environment.md',
+        );
+        $check->run($this->fixtures.'/doc_documented/.env');
+        $result = $check->getResult();
+        self::assertFalse($result->hasFailed());
+        self::assertEmpty($result->violations);
+    }
+
+    public function test_detects_a_variable_every_deployment_supplies_and_no_page_documents(): void
+    {
+        // The case the other scans cannot see: wired correctly everywhere a
+        // machine reads, and invisible to the person doing the deploying.
+        $check = new DeploymentConfigParityCheck(
+            ignoredAppEnvKeys: ['MESSENGER_TRANSPORT_DSN', 'COMPOSE_PROJECT_NAME'],
+            documentationPath: 'docs/reference/environment.md',
+        );
+        $check->run($this->fixtures.'/doc_missing/.env');
+        $result = $check->getResult();
+        self::assertTrue($result->hasFailed());
+        self::assertCount(1, $result->violations);
+        self::assertSame(Severity::Error, $result->violations[0]->severity);
+        self::assertStringContainsString('APP_SECRET', $result->violations[0]->message);
+        self::assertStringContainsString('an operator has no reference for it', $result->violations[0]->message);
+        self::assertStringEndsWith('docs/reference/environment.md', $result->violations[0]->file);
+    }
+
+    public function test_an_exemption_the_application_no_longer_reads_is_reported(): void
+    {
+        // A page covering a variable under a shorthand entry is the reason the
+        // exemption list exists, so the list has to rot as loudly as the others.
+        $check = new DeploymentConfigParityCheck(
+            ignoredAppEnvKeys: ['MESSENGER_TRANSPORT_DSN', 'COMPOSE_PROJECT_NAME'],
+            documentationPath: 'docs/reference/environment.md',
+            undocumentedEnvKeys: ['EXPORT_STORAGE_BUCKET'],
+        );
+        $check->run($this->fixtures.'/doc_stale_exemption/.env');
+        $result = $check->getResult();
+        self::assertTrue($result->hasFailed());
+        self::assertCount(1, $result->violations);
+        self::assertStringContainsString('EXPORT_STORAGE_BUCKET', $result->violations[0]->message);
+        self::assertStringContainsString('the exemption is stale', $result->violations[0]->message);
+    }
+
     public function test_detects_terraform_variable_missing_from_the_example(): void
     {
         $check = new DeploymentConfigParityCheck();

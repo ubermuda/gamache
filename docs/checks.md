@@ -68,6 +68,7 @@ Ensures every deployment variable a project declares also reaches the file an op
 | `docker/compose/prod.env.example` | `docker/compose/prod.yaml` |
 | `docker/compose/prod.yaml` (settable keys) | `docker/compose/prod.env.example` |
 | `.env` + `%env(...)%` in `config/`, `src/` | assigned in `terraform/`, named in `docker/compose/prod.yaml` |
+| `.env` + `%env(...)%` in `config/`, `src/` | named in `documentationPath`, when one is set |
 
 For Terraform, every `variable "name" {` must appear somewhere in the tfvars example. **A commented-out example counts** — that file is documentation, so `# export_storage_key = "..."` is exactly the right way to document an optional variable.
 
@@ -93,6 +94,8 @@ Names match on whole-word boundaries, so a `region` variable is not considered d
 | `terraformReportPath` | `string` | `'terraform/main.tf'` |
 | `moduleProvidedEnvKeys` | `list<string>` | `[]` |
 | `ignoredAppEnvKeys` | `list<string>` | `[]` |
+| `documentationPath` | `string` | `''` |
+| `undocumentedEnvKeys` | `list<string>` | `[]` |
 
 Use the ignore lists for variables a project deliberately keeps out of its template — credentials supplied only through `TF_VAR_*`, for instance.
 
@@ -106,6 +109,12 @@ Each name must then be *assigned* somewhere in `terraformDir` — as `NAME = {` 
 
 - `moduleProvidedEnvKeys` — injected by an external Terraform module, so absent from this repository's `.tf` files by design. Transcribe it from the module at the ref you pin; nothing can derive it for you, and only some module *arguments* become environment variables.
 - `ignoredAppEnvKeys` — read but deliberately reaching no deployment, either development-only or already correct at the committed dotenv value.
+- `documentationPath` — the operator-facing reference page every variable must be named in. Empty by default, which switches the scan off, so an existing project gains no new failure until it opts in.
+- `undocumentedEnvKeys` — exempt from that page, on top of `ignoredAppEnvKeys`.
+
+Every other file above is read by a machine. A variable can therefore be declared, wired into Terraform, referenced by Compose and named in both templates, and still appear in no prose an operator ever reads. Every scan passes, because each one compares one machine-read file against another. Set `documentationPath` and the check covers the whole path from the application to the person deploying it.
+
+`ignoredAppEnvKeys` carries through to that scan, because a variable reaching no deployment needs no operator reference either. `undocumentedEnvKeys` is for the opposite case: a variable that does reach a deployment and is still absent from the page. Two shapes are common and both are legitimate. A reference page may delegate a whole family to another document, such as object storage. It may also use a shorthand entry, naming `OAUTH_GOOGLE_ID` / `_SECRET` in one row, which a whole-word match on `OAUTH_GOOGLE_SECRET` does not find. Exempt those rather than loosening the match, because a looser match stops detecting the case the scan exists for. `undocumentedEnvKeys` is checked for staleness the same way.
 
 `ignoredAppEnvKeys` is itself checked: a name the application no longer reads is reported as a stale exemption. Without that, the list becomes the place a missing variable hides, since adding a name to it silences the check just as well as wiring the variable up. `moduleProvidedEnvKeys` is exempt from that, because it describes the module rather than this application and a module may well inject names the application never reads — which means a pin bump that changes the module's own set is not caught, and re-reading it is on you.
 
