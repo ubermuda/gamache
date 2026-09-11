@@ -9,6 +9,7 @@ use Gamache\Tests\PHPStan\Fixtures\Mcp\DocumentPresenter as DocumentHandler;
 use Gamache\Tests\PHPStan\Fixtures\Mcp\DiscardingBaseTool;
 use Gamache\Tests\PHPStan\Fixtures\Mcp\HandlerAwareTool;
 use Gamache\Tests\PHPStan\Fixtures\Mcp\PresenterAwareTool;
+use Gamache\Tests\PHPStan\Fixtures\Mcp\StaticHandlerTool;
 use Mcp\Capability\Attribute\McpTool;
 
 final readonly class TagRepository
@@ -129,6 +130,16 @@ final class DocumentOverrideTool extends HandlerAwareTool
 // The parent takes a handler and drops it, so there is nothing to inherit.
 #[McpTool(name: 'document_discard')]
 final class DocumentDiscardTool extends DiscardingBaseTool
+{
+    public function __invoke(string $documentId): string
+    {
+        return $documentId;
+    }
+}
+
+// The parent's handler is static, so nothing is injected into this instance.
+#[McpTool(name: 'document_static')]
+final class DocumentStaticTool extends StaticHandlerTool
 {
     public function __invoke(string $documentId): string
     {

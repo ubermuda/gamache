@@ -169,6 +169,11 @@ final readonly class McpToolHandlerRule implements Rule
 
         // Native properties include the ones the parent inherits in turn.
         foreach ($this->reflectionProvider->getClass($parent)->getNativeReflection()->getProperties() as $property) {
+            // A static property belongs to the class, so it injects nothing.
+            if ($property->isStatic()) {
+                continue;
+            }
+
             foreach (self::reflectionTypeNames($property->getType()) as $name) {
                 if (str_ends_with($name, self::SUFFIX)) {
                     return true;

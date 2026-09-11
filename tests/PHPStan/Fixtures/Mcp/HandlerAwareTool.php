@@ -29,3 +29,9 @@ abstract class DiscardingBaseTool
     {
     }
 }
+
+/** Holds the handler on the class, not on the instance. */
+abstract class StaticHandlerTool
+{
+    protected static ArchiveDocumentHandler $archive;
+}
