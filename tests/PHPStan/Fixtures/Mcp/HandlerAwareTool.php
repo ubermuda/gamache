@@ -12,26 +12,3 @@ abstract class HandlerAwareTool
     ) {
     }
 }
-
-/** A base class that injects no handler, so a subclass is on its own. */
-abstract class PresenterAwareTool
-{
-    public function __construct(
-        protected readonly DocumentPresenter $presenter,
-    ) {
-    }
-}
-
-/** Takes a handler and keeps nothing, so a subclass inherits nothing. */
-abstract class DiscardingBaseTool
-{
-    public function __construct(ArchiveDocumentHandler $archive)
-    {
-    }
-}
-
-/** Holds the handler on the class, not on the instance. */
-abstract class StaticHandlerTool
-{
-    protected static ArchiveDocumentHandler $archive;
-}
