@@ -153,7 +153,11 @@ final readonly class McpToolHandlerRule implements Rule
      * the class it is given could not run before the analysed file is
      * autoloadable.
      *
-     * The check is shallow on purpose. It does not trace which constructor in a
+     * The check is shallow on purpose, here and in the subclass's own
+     * constructor. Neither asks whether initialisation happens on every path,
+     * so a conditional assignment or a conditional `parent::__construct()`
+     * counts. Deciding that needs control-flow analysis, and the shape it would
+     * catch leaves a typed property unset, which PHP makes fatal on first read. It does not trace which constructor in a
      * longer chain sets the property, so a parent that declares a handler
      * property and never assigns it clears the subclass. Such a parent is a
      * fatal error on first use, since a typed property cannot be read before it
