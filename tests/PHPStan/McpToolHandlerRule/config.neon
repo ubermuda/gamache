@@ -1,0 +1,3 @@
+parameters:
+    scanFiles:
+        - %currentWorkingDirectory%/tests/PHPStan/Fixtures/Mcp/McpTool.php

@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`McpToolHandlerRule` and `McpToolNoDirectStateAccessRule`: an MCP tool delegates its work.**
+  A class carrying `#[McpTool]` must inject a handler — a constructor parameter typed
+  `*Handler` — and must not call a Doctrine EntityManager, DBAL Connection or repository
+  itself. Identifiers `mcp.missingHandler` and `mcp.directStateAccess`.
+
+  A tool is one of two front doors onto the same domain, and the HTTP one already goes
+  through a Command/Handler. Work written in the tool is a second copy of a rule, behind
+  an agent, where nobody looks: the web form rejects an empty title and the tool accepts
+  one, and both are the product. The handler is also the only layer with a test that does
+  not have to speak MCP.
+
+  Two rules rather than one, because the shape that actually ships has both halves. A
+  tool that delegates its write and then reads a repository for the response injects a
+  handler and still reaches past it. A single rule would have to pick which half to
+  report, and would clear that tool on the strength of the handler it does inject.
+
+  `McpToolNoDirectStateAccessRule` shares its detector with
+  `ControllerNoDirectStateAccessRule`, which asks the same question about a class found a
+  different way. The controller rule keeps its constructor, its message, its identifier
+  and its behaviour.
+
+  Neither rule follows an inherited property, reads a nullsafe call, or looks inside a
+  compound type: a base class that holds the repository, `$this->cards?->findAll()`, and a
+  property typed `ObjectRepository|FallbackRepository` all pass. That is
+  `ControllerNoDirectStateAccessRule`'s behaviour as it has always been, and closing
+  either gap widens that rule for every project already consuming it. `McpToolHandlerRule` does follow an inherited handler, because the cost of the
+  two gaps is not the same: a missed violation is a rule that has not helped yet, and a
+  false report is a rule that blocks correct code.
+
 - **`DeploymentConfigParityCheck`: an optional scan for the operator-facing reference page.**
   Every file the check already compared is read by a machine. A variable can be declared in
   `.env`, wired into Terraform, referenced by Compose and named in both templates, and still

@@ -252,3 +252,11 @@ services:
             recordMethods: %gamache.auditOperations.recordMethods%
         tags:
             - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\McpToolHandlerRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\McpToolNoDirectStateAccessRule
+        tags:
+            - phpstan.rules.rule
