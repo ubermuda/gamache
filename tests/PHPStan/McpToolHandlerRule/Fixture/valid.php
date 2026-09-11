@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Review\Mcp\Delegating;
 
+use Gamache\Tests\PHPStan\Fixtures\Mcp\ArchiveDocumentHandler as Archiver;
 use Mcp\Capability\Attribute\McpTool;
 
 final readonly class ReviseDocumentHandler
@@ -83,5 +84,20 @@ final readonly class DocumentPurgeTool
     public function __invoke(string $series): int
     {
         return $this->documents->countBySeries($series);
+    }
+}
+
+// Imported under an alias that does not say Handler. The class it names does.
+#[McpTool(name: 'document_unarchive')]
+final readonly class DocumentUnarchiveTool
+{
+    public function __construct(
+        private Archiver $archive,
+    ) {
+    }
+
+    public function __invoke(string $documentId): void
+    {
+        ($this->archive)($documentId);
     }
 }

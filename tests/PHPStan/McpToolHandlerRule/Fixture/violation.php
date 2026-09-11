@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Review\Mcp\Direct;
 
+use Gamache\Tests\PHPStan\Fixtures\Mcp\DocumentPresenter as DocumentHandler;
 use Mcp\Capability\Attribute\McpTool;
 
 final readonly class TagRepository
@@ -64,5 +65,20 @@ final readonly class SeriesListTool
     public function __invoke(): array
     {
         return [];
+    }
+}
+
+// Aliased to a name that says Handler. The class it names does not.
+#[McpTool(name: 'document_get')]
+final readonly class DocumentGetTool
+{
+    public function __construct(
+        private DocumentHandler $presenter,
+    ) {
+    }
+
+    public function __invoke(string $documentId): string
+    {
+        return $this->presenter->present($documentId);
     }
 }

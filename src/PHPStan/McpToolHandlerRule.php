@@ -60,7 +60,7 @@ final readonly class McpToolHandlerRule implements Rule
             return [];
         }
 
-        if ($this->injectsHandler($node)) {
+        if ($this->injectsHandler($node, $scope)) {
             return [];
         }
 
@@ -93,7 +93,7 @@ final readonly class McpToolHandlerRule implements Rule
      * not required: a constructor that assigns the parameter by hand injects it
      * just the same.
      */
-    private function injectsHandler(Class_ $class): bool
+    private function injectsHandler(Class_ $class, Scope $scope): bool
     {
         foreach ($class->stmts as $stmt) {
             if (!$stmt instanceof ClassMethod || '__construct' !== $stmt->name->name) {
@@ -105,7 +105,7 @@ final readonly class McpToolHandlerRule implements Rule
                     continue;
                 }
 
-                foreach (self::typeNames($param->type) as $name) {
+                foreach (self::typeNames($param->type, $scope) as $name) {
                     if (str_ends_with($name, self::SUFFIX)) {
                         return true;
                     }
@@ -117,26 +117,38 @@ final readonly class McpToolHandlerRule implements Rule
     }
 
     /**
-     * The short names a parameter type is written with. A union or intersection
-     * contributes every branch, since any one of them can be the handler.
+     * The class names a parameter type resolves to, each shortened to its last
+     * segment. Resolution matters both ways: an import aliased to something
+     * else still names the handler class, and a name aliased *to* `*Handler`
+     * names whatever class it was imported from.
+     *
+     * A union or intersection contributes every branch, since any one of them
+     * can be the handler.
      *
      * @return list<string>
      */
-    private static function typeNames(?Node $type): array
+    private static function typeNames(?Node $type, Scope $scope): array
     {
         if ($type instanceof NullableType) {
-            return self::typeNames($type->type);
+            return self::typeNames($type->type, $scope);
         }
 
         if ($type instanceof Node\UnionType || $type instanceof Node\IntersectionType) {
             $names = [];
             foreach ($type->types as $branch) {
-                $names = [...$names, ...self::typeNames($branch)];
+                $names = [...$names, ...self::typeNames($branch, $scope)];
             }
 
             return $names;
         }
 
-        return $type instanceof Name ? [$type->getLast()] : [];
+        if (!$type instanceof Name) {
+            return [];
+        }
+
+        $resolved = $scope->resolveName($type);
+        $position = strrpos($resolved, '\\');
+
+        return [false === $position ? $resolved : substr($resolved, $position + 1)];
     }
 }
