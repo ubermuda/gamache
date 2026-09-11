@@ -13,8 +13,11 @@ use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\NullableType;
 use PhpParser\Node\Stmt\Class_;
+use PhpParser\Node\FunctionLike;
 use PhpParser\Node\Stmt\ClassMethod;
-use PhpParser\NodeFinder;
+use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitor;
+use PhpParser\NodeVisitorAbstract;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\Rule;
@@ -202,12 +205,10 @@ final readonly class McpToolHandlerRule implements Rule
             return true;
         }
 
-        /** @var StaticCall[] $calls */
-        $calls = new NodeFinder()->findInstanceOf($constructor->stmts ?? [], StaticCall::class);
-
-        foreach ($calls as $call) {
-            if ($call->class instanceof Name && 'parent' === $call->class->toLowerString()
-                && $call->name instanceof Identifier && '__construct' === $call->name->toLowerString()) {
+        foreach (self::executedNodes($constructor) as $node) {
+            if ($node instanceof StaticCall
+                && $node->class instanceof Name && 'parent' === $node->class->toLowerString()
+                && $node->name instanceof Identifier && '__construct' === $node->name->toLowerString()) {
                 return true;
             }
         }
@@ -242,20 +243,49 @@ final readonly class McpToolHandlerRule implements Rule
     /** Whether the constructor assigns the named parameter to a property. */
     private static function isKept(ClassMethod $constructor, string $parameter): bool
     {
-        /** @var Assign[] $assignments */
-        $assignments = new NodeFinder()->findInstanceOf($constructor->stmts ?? [], Assign::class);
-
-        foreach ($assignments as $assignment) {
-            if ($assignment->var instanceof PropertyFetch
-                && $assignment->var->var instanceof Variable
-                && 'this' === $assignment->var->var->name
-                && $assignment->expr instanceof Variable
-                && $parameter === $assignment->expr->name) {
+        foreach (self::executedNodes($constructor) as $node) {
+            if ($node instanceof Assign
+                && $node->var instanceof PropertyFetch
+                && $node->var->var instanceof Variable
+                && 'this' === $node->var->var->name
+                && $node->expr instanceof Variable
+                && $parameter === $node->expr->name) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Every node the constructor body runs itself, with nested function scopes
+     * pruned. A closure the constructor builds and does not call runs later or
+     * never, so an assignment or a `parent::__construct()` inside one has not
+     * happened when the constructor returns.
+     *
+     * @return list<Node>
+     */
+    private static function executedNodes(ClassMethod $constructor): array
+    {
+        $visitor = new class extends NodeVisitorAbstract {
+            /** @var list<Node> */
+            public array $found = [];
+
+            public function enterNode(Node $node): ?int
+            {
+                if ($node instanceof FunctionLike) {
+                    return NodeVisitor::DONT_TRAVERSE_CHILDREN;
+                }
+
+                $this->found[] = $node;
+
+                return null;
+            }
+        };
+
+        new NodeTraverser($visitor)->traverse($constructor->stmts ?? []);
+
+        return $visitor->found;
     }
 
     /**

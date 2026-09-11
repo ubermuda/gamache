@@ -146,3 +146,37 @@ final class DocumentStaticTool extends StaticHandlerTool
         return $documentId;
     }
 }
+
+// Assigns the handler only inside a closure the constructor never calls.
+#[McpTool(name: 'document_defer')]
+final class DocumentDeferTool
+{
+    private ArchiveDocumentHandler $archive;
+
+    public function __construct(ArchiveDocumentHandler $archive)
+    {
+        $assign = function () use ($archive): void {
+            $this->archive = $archive;
+        };
+    }
+
+    public function __invoke(string $documentId): string
+    {
+        return $documentId;
+    }
+}
+
+// Runs the parent's constructor only inside a closure it never calls.
+#[McpTool(name: 'document_defer_parent')]
+final class DocumentDeferParentTool extends HandlerAwareTool
+{
+    public function __construct(ArchiveDocumentHandler $archive)
+    {
+        $run = fn (): mixed => parent::__construct($archive);
+    }
+
+    public function __invoke(string $documentId): string
+    {
+        return $documentId;
+    }
+}

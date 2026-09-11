@@ -41,6 +41,8 @@ final class McpToolHandlerRuleTest extends RuleTestCase
             ['MCP tool DocumentOverrideTool injects no handler; give it a Command/Handler pair to delegate to.', 117],
             ['MCP tool DocumentDiscardTool injects no handler; give it a Command/Handler pair to delegate to.', 131],
             ['MCP tool DocumentStaticTool injects no handler; give it a Command/Handler pair to delegate to.', 141],
+            ['MCP tool DocumentDeferTool injects no handler; give it a Command/Handler pair to delegate to.', 151],
+            ['MCP tool DocumentDeferParentTool injects no handler; give it a Command/Handler pair to delegate to.', 170],
         ]);
     }
 }
