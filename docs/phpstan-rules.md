@@ -1044,7 +1044,7 @@ Handlers are invoked as a callable, `($this->handler)(…)`, which is a FuncCall
 
 Injecting a handler is not a defence. A tool that delegates its write and then reads a repository for the response is the common shape, and is what this rule is for. Whether a handler is injected at all is [McpToolHandlerRule](#mcptoolhandlerrule)'s question.
 
-The rule reads the properties the class itself declares. A tool whose base class holds the repository is not reported, which is the behaviour `ControllerNoDirectStateAccessRule` has always had, and closing that gap belongs to both rules at once.
+Two gaps come with the shared detector, and both rules have them. The rule reads the properties the class itself declares, so a tool whose base class holds the repository is not reported. It also scans `MethodCall` only, so `$this->cards?->findAll()` on a nullable collaborator is not reported either. Both are `ControllerNoDirectStateAccessRule`'s behaviour as it has always been, and closing either one widens that rule for every project that already consumes it.
 
 > `MCP tool SeriesRenameTool must not access persistent state directly (countBySeries()); read and write through a Command/Handler.`
 
