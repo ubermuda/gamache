@@ -21,3 +21,11 @@ abstract class PresenterAwareTool
     ) {
     }
 }
+
+/** Takes a handler and keeps nothing, so a subclass inherits nothing. */
+abstract class DiscardingBaseTool
+{
+    public function __construct(ArchiveDocumentHandler $archive)
+    {
+    }
+}

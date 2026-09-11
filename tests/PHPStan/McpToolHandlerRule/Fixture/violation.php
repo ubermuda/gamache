@@ -6,6 +6,8 @@ namespace App\Module\Review\Mcp\Direct;
 
 use Gamache\Tests\PHPStan\Fixtures\Mcp\ArchiveDocumentHandler;
 use Gamache\Tests\PHPStan\Fixtures\Mcp\DocumentPresenter as DocumentHandler;
+use Gamache\Tests\PHPStan\Fixtures\Mcp\DiscardingBaseTool;
+use Gamache\Tests\PHPStan\Fixtures\Mcp\HandlerAwareTool;
 use Gamache\Tests\PHPStan\Fixtures\Mcp\PresenterAwareTool;
 use Mcp\Capability\Attribute\McpTool;
 
@@ -106,5 +108,30 @@ final class DocumentPresentTool extends PresenterAwareTool
     public function __invoke(string $documentId): string
     {
         return $this->presenter->present($documentId);
+    }
+}
+
+// Overrides the parent's constructor without running it, so the parent's
+// handler property is never set.
+#[McpTool(name: 'document_override')]
+final class DocumentOverrideTool extends HandlerAwareTool
+{
+    public function __construct()
+    {
+    }
+
+    public function __invoke(string $documentId): string
+    {
+        return $documentId;
+    }
+}
+
+// The parent takes a handler and drops it, so there is nothing to inherit.
+#[McpTool(name: 'document_discard')]
+final class DocumentDiscardTool extends DiscardingBaseTool
+{
+    public function __invoke(string $documentId): string
+    {
+        return $documentId;
     }
 }

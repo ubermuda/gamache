@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Neither rule follows an inherited property. A tool whose base class holds the repository
   is not reported, which is the behaviour `ControllerNoDirectStateAccessRule` has always
-  had. `McpToolHandlerRule` does follow an inherited constructor, because the cost of the
+  had. `McpToolHandlerRule` does follow an inherited handler, because the cost of the
   two gaps is not the same: a missed violation is a rule that has not helped yet, and a
   false report is a rule that blocks correct code.
 

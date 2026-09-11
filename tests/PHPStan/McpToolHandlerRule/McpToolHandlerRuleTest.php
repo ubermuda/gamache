@@ -32,12 +32,14 @@ final class McpToolHandlerRuleTest extends RuleTestCase
     public function test_a_tool_with_no_handler_is_reported(): void
     {
         $this->analyse([__DIR__.'/Fixture/violation.php'], [
-            ['MCP tool TagListTool injects no handler; give it a Command/Handler pair to delegate to.', 31],
-            ['MCP tool CardGetTool injects no handler; give it a Command/Handler pair to delegate to.', 47],
-            ['MCP tool SeriesListTool injects no handler; give it a Command/Handler pair to delegate to.', 63],
-            ['MCP tool DocumentGetTool injects no handler; give it a Command/Handler pair to delegate to.', 74],
-            ['MCP tool DocumentTouchTool injects no handler; give it a Command/Handler pair to delegate to.', 89],
-            ['MCP tool DocumentPresentTool injects no handler; give it a Command/Handler pair to delegate to.', 103],
+            ['MCP tool TagListTool injects no handler; give it a Command/Handler pair to delegate to.', 33],
+            ['MCP tool CardGetTool injects no handler; give it a Command/Handler pair to delegate to.', 49],
+            ['MCP tool SeriesListTool injects no handler; give it a Command/Handler pair to delegate to.', 65],
+            ['MCP tool DocumentGetTool injects no handler; give it a Command/Handler pair to delegate to.', 76],
+            ['MCP tool DocumentTouchTool injects no handler; give it a Command/Handler pair to delegate to.', 91],
+            ['MCP tool DocumentPresentTool injects no handler; give it a Command/Handler pair to delegate to.', 105],
+            ['MCP tool DocumentOverrideTool injects no handler; give it a Command/Handler pair to delegate to.', 116],
+            ['MCP tool DocumentDiscardTool injects no handler; give it a Command/Handler pair to delegate to.', 130],
         ]);
     }
 }

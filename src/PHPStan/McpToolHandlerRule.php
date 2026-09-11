@@ -7,7 +7,9 @@ namespace Gamache\PHPStan;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\PropertyFetch;
+use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
+use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\NullableType;
 use PhpParser\Node\Stmt\Class_;
@@ -133,19 +135,24 @@ final readonly class McpToolHandlerRule implements Rule
     }
 
     /**
-     * Whether a parent class injects the handler on the tool's behalf. A base
+     * Whether a parent class holds the handler on the tool's behalf. A base
      * class that takes the handler and a subclass that only declares the
      * attribute is one class between them, and reporting the subclass would be
      * reporting a tool that delegates.
      *
-     * The parent is read through reflection, since its constructor is not in
-     * the file being analysed. The subclass is not, because a rule that needed
-     * reflection for the class it is given could not run before the analysed
-     * file is autoloadable.
+     * The question asked of the parent is what the instance retains, not what
+     * its constructor accepts: a property typed `*Handler`, promoted or
+     * assigned. A parent that takes a handler and drops it leaves the subclass
+     * with nothing, exactly as it would in the subclass's own constructor.
+     *
+     * The parent is read through reflection, since it is not in the file being
+     * analysed. The subclass is not, because a rule that needed reflection for
+     * the class it is given could not run before the analysed file is
+     * autoloadable.
      */
     private function inheritsHandler(Class_ $class, Scope $scope): bool
     {
-        if (null === $class->extends) {
+        if (null === $class->extends || !self::runsParentConstructor($class)) {
             return false;
         }
 
@@ -154,23 +161,71 @@ final readonly class McpToolHandlerRule implements Rule
             return false;
         }
 
-        $reflection = $this->reflectionProvider->getClass($parent);
-        if (!$reflection->hasConstructor()) {
-            return false;
-        }
-
-        // getConstructor() already resolves through the parent's own ancestors.
-        foreach ($reflection->getConstructor()->getVariants() as $variant) {
-            foreach ($variant->getParameters() as $parameter) {
-                foreach ($parameter->getType()->getObjectClassNames() as $fqcn) {
-                    if (str_ends_with(self::shortName($fqcn), self::SUFFIX)) {
-                        return true;
-                    }
+        // Native properties include the ones the parent inherits in turn.
+        foreach ($this->reflectionProvider->getClass($parent)->getNativeReflection()->getProperties() as $property) {
+            foreach (self::reflectionTypeNames($property->getType()) as $name) {
+                if (str_ends_with($name, self::SUFFIX)) {
+                    return true;
                 }
             }
         }
 
         return false;
+    }
+
+    /**
+     * Whether the parent's constructor runs at all. A subclass that declares
+     * its own overrides it, and the parent's properties stay unset unless the
+     * override calls `parent::__construct()`.
+     */
+    private static function runsParentConstructor(Class_ $class): bool
+    {
+        $constructor = null;
+        foreach ($class->stmts as $stmt) {
+            if ($stmt instanceof ClassMethod && '__construct' === $stmt->name->name) {
+                $constructor = $stmt;
+            }
+        }
+
+        if (null === $constructor) {
+            return true;
+        }
+
+        /** @var StaticCall[] $calls */
+        $calls = new NodeFinder()->findInstanceOf($constructor->stmts ?? [], StaticCall::class);
+
+        foreach ($calls as $call) {
+            if ($call->class instanceof Name && 'parent' === $call->class->toLowerString()
+                && $call->name instanceof Identifier && '__construct' === $call->name->toLowerString()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The class names a reflected type resolves to, each shortened to its last
+     * segment. A builtin contributes nothing.
+     *
+     * @return list<string>
+     */
+    private static function reflectionTypeNames(?\ReflectionType $type): array
+    {
+        if ($type instanceof \ReflectionNamedType) {
+            return $type->isBuiltin() ? [] : [self::shortName($type->getName())];
+        }
+
+        if ($type instanceof \ReflectionUnionType || $type instanceof \ReflectionIntersectionType) {
+            $names = [];
+            foreach ($type->getTypes() as $branch) {
+                $names = [...$names, ...self::reflectionTypeNames($branch)];
+            }
+
+            return $names;
+        }
+
+        return [];
     }
 
     /** Whether the constructor assigns the named parameter to a property. */

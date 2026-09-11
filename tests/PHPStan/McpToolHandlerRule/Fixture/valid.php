@@ -112,3 +112,22 @@ final class InheritingTool extends HandlerAwareTool
         ($this->archive)($documentId);
     }
 }
+
+// Its own constructor, but it runs the parent's, so the handler is there.
+#[McpTool(name: 'document_rearchive')]
+final class ReArchivingTool extends HandlerAwareTool
+{
+    public function __construct(
+        private readonly string $reason,
+        Archiver $archive,
+    ) {
+        parent::__construct($archive);
+    }
+
+    public function __invoke(string $documentId): string
+    {
+        ($this->archive)($documentId);
+
+        return $this->reason;
+    }
+}
