@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Gamache\PHPStan;
 
 use PhpParser\Node;
+use PhpParser\Node\Expr\Assign;
+use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Name;
 use PhpParser\Node\NullableType;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\NodeFinder;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleError;
@@ -89,9 +92,11 @@ final readonly class McpToolHandlerRule implements Rule
     }
 
     /**
-     * A constructor parameter typed as something named `*Handler`. Promotion is
-     * not required: a constructor that assigns the parameter by hand injects it
-     * just the same.
+     * A constructor parameter typed as something named `*Handler` that the tool
+     * keeps. Promotion is not required, since a constructor that assigns the
+     * parameter by hand injects it just the same — but a parameter that is
+     * neither promoted nor assigned is gone by the time `__invoke()` runs, so
+     * the tool has nothing to delegate to.
      */
     private function injectsHandler(Class_ $class, Scope $scope): bool
     {
@@ -101,15 +106,39 @@ final readonly class McpToolHandlerRule implements Rule
             }
 
             foreach ($stmt->params as $param) {
-                if (!$param->var instanceof Variable) {
+                if (!$param->var instanceof Variable || !\is_string($param->var->name)) {
                     continue;
                 }
 
                 foreach (self::typeNames($param->type, $scope) as $name) {
-                    if (str_ends_with($name, self::SUFFIX)) {
+                    if (!str_ends_with($name, self::SUFFIX)) {
+                        continue;
+                    }
+
+                    // Promoted constructor properties carry a visibility flag.
+                    if (0 !== $param->flags || self::isKept($stmt, $param->var->name)) {
                         return true;
                     }
                 }
+            }
+        }
+
+        return false;
+    }
+
+    /** Whether the constructor assigns the named parameter to a property. */
+    private static function isKept(ClassMethod $constructor, string $parameter): bool
+    {
+        /** @var Assign[] $assignments */
+        $assignments = new NodeFinder()->findInstanceOf($constructor->stmts ?? [], Assign::class);
+
+        foreach ($assignments as $assignment) {
+            if ($assignment->var instanceof PropertyFetch
+                && $assignment->var->var instanceof Variable
+                && 'this' === $assignment->var->var->name
+                && $assignment->expr instanceof Variable
+                && $parameter === $assignment->expr->name) {
+                return true;
             }
         }
 

@@ -1010,7 +1010,7 @@ A tool is one of two front doors onto the same domain, and the HTTP one already 
 
 The rule cannot ask whether the injected handler is the one that does the work. A tool that injects a handler and still reaches for a repository passes here, and [McpToolNoDirectStateAccessRule](#mcptoolnodirectstateaccessrule) reports it instead. The two rules answer different halves of the same convention, so run both.
 
-Promotion is not required: a constructor that assigns the parameter by hand injects it just the same. A union or intersection type counts when any branch of it is named `*Handler`. The suffix is read from the class the parameter resolves to, not from the name written at the parameter, so an import aliased to something shorter still counts and an unrelated class aliased to `SomethingHandler` does not.
+Promotion is not required: a constructor that assigns the parameter by hand injects it just the same. A parameter that is neither promoted nor assigned does not count, because nothing is left for `__invoke()` to call. A union or intersection type counts when any branch of it is named `*Handler`. The suffix is read from the class the parameter resolves to, not from the name written at the parameter, so an import aliased to something shorter still counts and an unrelated class aliased to `SomethingHandler` does not.
 
 > `MCP tool CardListTool injects no handler; give it a Command/Handler pair to delegate to.`
 
