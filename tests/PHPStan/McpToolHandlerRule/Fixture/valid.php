@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Review\Mcp\Delegating;
 
 use Gamache\Tests\PHPStan\Fixtures\Mcp\ArchiveDocumentHandler as Archiver;
+use Gamache\Tests\PHPStan\Fixtures\Mcp\HandlerAwareTool;
 use Mcp\Capability\Attribute\McpTool;
 
 final readonly class ReviseDocumentHandler
@@ -96,6 +97,16 @@ final readonly class DocumentUnarchiveTool
     ) {
     }
 
+    public function __invoke(string $documentId): void
+    {
+        ($this->archive)($documentId);
+    }
+}
+
+// The parent's constructor injects the handler, so the subclass delegates too.
+#[McpTool(name: 'document_archive_again')]
+final class InheritingTool extends HandlerAwareTool
+{
     public function __invoke(string $documentId): void
     {
         ($this->archive)($documentId);

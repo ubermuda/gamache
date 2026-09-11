@@ -30,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   different way. The controller rule keeps its constructor, its message, its identifier
   and its behaviour.
 
+  Neither rule follows an inherited property. A tool whose base class holds the repository
+  is not reported, which is the behaviour `ControllerNoDirectStateAccessRule` has always
+  had. `McpToolHandlerRule` does follow an inherited constructor, because the cost of the
+  two gaps is not the same: a missed violation is a rule that has not helped yet, and a
+  false report is a rule that blocks correct code.
+
 - **`DeploymentConfigParityCheck`: an optional scan for the operator-facing reference page.**
   Every file the check already compared is read by a machine. A variable can be declared in
   `.env`, wired into Terraform, referenced by Compose and named in both templates, and still

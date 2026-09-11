@@ -14,6 +14,7 @@ use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\NodeFinder;
 use PHPStan\Analyser\Scope;
+use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleError;
 use PHPStan\Rules\RuleErrorBuilder;
@@ -44,6 +45,11 @@ final readonly class McpToolHandlerRule implements Rule
 
     private const string SUFFIX = 'Handler';
 
+    public function __construct(
+        private ReflectionProvider $reflectionProvider,
+    ) {
+    }
+
     public function getNodeType(): string
     {
         return Class_::class;
@@ -63,7 +69,7 @@ final readonly class McpToolHandlerRule implements Rule
             return [];
         }
 
-        if ($this->injectsHandler($node, $scope)) {
+        if ($this->injectsHandler($node, $scope) || $this->inheritsHandler($node, $scope)) {
             return [];
         }
 
@@ -126,6 +132,47 @@ final readonly class McpToolHandlerRule implements Rule
         return false;
     }
 
+    /**
+     * Whether a parent class injects the handler on the tool's behalf. A base
+     * class that takes the handler and a subclass that only declares the
+     * attribute is one class between them, and reporting the subclass would be
+     * reporting a tool that delegates.
+     *
+     * The parent is read through reflection, since its constructor is not in
+     * the file being analysed. The subclass is not, because a rule that needed
+     * reflection for the class it is given could not run before the analysed
+     * file is autoloadable.
+     */
+    private function inheritsHandler(Class_ $class, Scope $scope): bool
+    {
+        if (null === $class->extends) {
+            return false;
+        }
+
+        $parent = $scope->resolveName($class->extends);
+        if (!$this->reflectionProvider->hasClass($parent)) {
+            return false;
+        }
+
+        $reflection = $this->reflectionProvider->getClass($parent);
+        if (!$reflection->hasConstructor()) {
+            return false;
+        }
+
+        // getConstructor() already resolves through the parent's own ancestors.
+        foreach ($reflection->getConstructor()->getVariants() as $variant) {
+            foreach ($variant->getParameters() as $parameter) {
+                foreach ($parameter->getType()->getObjectClassNames() as $fqcn) {
+                    if (str_ends_with(self::shortName($fqcn), self::SUFFIX)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     /** Whether the constructor assigns the named parameter to a property. */
     private static function isKept(ClassMethod $constructor, string $parameter): bool
     {
@@ -175,9 +222,13 @@ final readonly class McpToolHandlerRule implements Rule
             return [];
         }
 
-        $resolved = $scope->resolveName($type);
-        $position = strrpos($resolved, '\\');
+        return [self::shortName($scope->resolveName($type))];
+    }
 
-        return [false === $position ? $resolved : substr($resolved, $position + 1)];
+    private static function shortName(string $fqcn): string
+    {
+        $position = strrpos($fqcn, '\\');
+
+        return false === $position ? $fqcn : substr($fqcn, $position + 1);
     }
 }

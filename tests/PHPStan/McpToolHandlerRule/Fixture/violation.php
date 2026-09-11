@@ -6,6 +6,7 @@ namespace App\Module\Review\Mcp\Direct;
 
 use Gamache\Tests\PHPStan\Fixtures\Mcp\ArchiveDocumentHandler;
 use Gamache\Tests\PHPStan\Fixtures\Mcp\DocumentPresenter as DocumentHandler;
+use Gamache\Tests\PHPStan\Fixtures\Mcp\PresenterAwareTool;
 use Mcp\Capability\Attribute\McpTool;
 
 final readonly class TagRepository
@@ -95,5 +96,15 @@ final class DocumentTouchTool
     public function __invoke(string $documentId): string
     {
         return $documentId;
+    }
+}
+
+// A parent, but not one that injects a handler.
+#[McpTool(name: 'document_present')]
+final class DocumentPresentTool extends PresenterAwareTool
+{
+    public function __invoke(string $documentId): string
+    {
+        return $this->presenter->present($documentId);
     }
 }

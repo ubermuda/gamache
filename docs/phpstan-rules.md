@@ -1010,7 +1010,7 @@ A tool is one of two front doors onto the same domain, and the HTTP one already 
 
 The rule cannot ask whether the injected handler is the one that does the work. A tool that injects a handler and still reaches for a repository passes here, and [McpToolNoDirectStateAccessRule](#mcptoolnodirectstateaccessrule) reports it instead. The two rules answer different halves of the same convention, so run both.
 
-Promotion is not required: a constructor that assigns the parameter by hand injects it just the same. A parameter that is neither promoted nor assigned does not count, because nothing is left for `__invoke()` to call. A union or intersection type counts when any branch of it is named `*Handler`. The suffix is read from the class the parameter resolves to, not from the name written at the parameter, so an import aliased to something shorter still counts and an unrelated class aliased to `SomethingHandler` does not.
+Promotion is not required: a constructor that assigns the parameter by hand injects it just the same. A parameter that is neither promoted nor assigned does not count, because nothing is left for `__invoke()` to call. A tool that declares no handler of its own is cleared when a parent class's constructor takes one, which the rule reads through reflection. A union or intersection type counts when any branch of it is named `*Handler`. The suffix is read from the class the parameter resolves to, not from the name written at the parameter, so an import aliased to something shorter still counts and an unrelated class aliased to `SomethingHandler` does not.
 
 > `MCP tool CardListTool injects no handler; give it a Command/Handler pair to delegate to.`
 
@@ -1043,6 +1043,8 @@ A tool is the agent-facing front door onto the domain the web front door serves.
 Handlers are invoked as a callable, `($this->handler)(…)`, which is a FuncCall rather than a MethodCall, so delegation is exempt. So is a call on any collaborator that is not a persistence type — a subject resolver, a payload builder — and so is an inherited helper, which is called on `$this`.
 
 Injecting a handler is not a defence. A tool that delegates its write and then reads a repository for the response is the common shape, and is what this rule is for. Whether a handler is injected at all is [McpToolHandlerRule](#mcptoolhandlerrule)'s question.
+
+The rule reads the properties the class itself declares. A tool whose base class holds the repository is not reported, which is the behaviour `ControllerNoDirectStateAccessRule` has always had, and closing that gap belongs to both rules at once.
 
 > `MCP tool SeriesRenameTool must not access persistent state directly (countBySeries()); read and write through a Command/Handler.`
 
