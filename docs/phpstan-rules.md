@@ -1,6 +1,6 @@
 # PHPStan rules
 
-Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 35 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
+Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 37 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
 
 Every error carries an identifier, so you can opt out of a single rule with PHPStan's `ignoreErrors`:
 
@@ -22,7 +22,7 @@ All rules live in the `Gamache\PHPStan` namespace.
 **Entities & migrations:** [EntityAsymmetricVisibilityRule](#entityasymmetricvisibilityrule) · [MigrationDescriptionRule](#migrationdescriptionrule) · [MigrationExpandContractRule](#migrationexpandcontractrule) · [RepositoryParameterNameRule](#repositoryparameternamerule)
 **Security:** [VoterNotReadonlyRule](#voternotreadonlyrule)
 **Translations:** [TranslationCallSiteRule](#translationcallsiterule) · [TranslationAttributeRule](#translationattributerule)
-**MCP:** [McpToolNameRule](#mcptoolnamerule)
+**MCP:** [McpToolNameRule](#mcptoolnamerule) · [McpToolDelegatedShapeRule](#mcptooldelegatedshaperule) · [McpToolHandlerRule](#mcptoolhandlerrule) · [McpToolNoDirectStateAccessRule](#mcptoolnodirectstateaccessrule)
 **Audit:** [AuditOperationNameRule](#auditoperationnamerule)
 **Misc:** [EnumKebabCaseRule](#enumkebabcaserule) · [PassThroughHelperRule](#passthroughhelperrule)
 
@@ -995,6 +995,85 @@ final readonly class DocumentGetReviewTool
 public function __invoke(string $documentId): array
 {
     return ['review' => ($this->showReview)($documentId)];
+}
+```
+
+---
+
+## McpToolHandlerRule
+
+**Identifier:** `mcp.missingHandler`
+
+A class carrying `#[McpTool]` must inject a handler: a constructor parameter whose type name ends in `Handler`.
+
+A tool is one of two front doors onto the same domain, and the HTTP one already goes through a Command/Handler. A tool that does the work itself puts a second copy of a rule behind an agent, where nobody looks — the web form rejects an empty title and the tool accepts one, and both are the product. The handler is also the only layer with a test that does not have to speak MCP.
+
+The rule cannot ask whether the injected handler is the one that does the work. A tool that injects a handler and still reaches for a repository passes here, and [McpToolNoDirectStateAccessRule](#mcptoolnodirectstateaccessrule) reports it instead. The two rules answer different halves of the same convention, so run both.
+
+Promotion is not required: a constructor that assigns the parameter by hand injects it just the same. A union or intersection type counts when any branch of it is named `*Handler`.
+
+> `MCP tool CardListTool injects no handler; give it a Command/Handler pair to delegate to.`
+
+```php
+// BAD — the tool is the only place this work is written down
+#[McpTool(name: 'card_list')]
+final readonly class CardListTool
+{
+    public function __construct(private CardRepository $cards) {}
+}
+
+// GOOD
+#[McpTool(name: 'card_list')]
+final readonly class CardListTool
+{
+    public function __construct(private ListCardsHandler $listCards) {}
+}
+```
+
+---
+
+## McpToolNoDirectStateAccessRule
+
+**Identifier:** `mcp.directStateAccess`
+
+A class carrying `#[McpTool]` must never read or mutate persistent state directly. The rule flags any call on an injected Doctrine persistence collaborator — the EntityManager/ObjectManager, the DBAL Connection, or a repository — exactly as [ControllerNoDirectStateAccessRule](#controllernodirectstateaccessrule) does for controllers, and both rules share one detector.
+
+A tool is the agent-facing front door onto the domain the web front door serves. Query a repository from the tool and that query sits outside every rule the handler enforces, and outside every test written against it. The two doors then answer differently, which reaches a user as an agent that can do something the UI forbids.
+
+Handlers are invoked as a callable, `($this->handler)(…)`, which is a FuncCall rather than a MethodCall, so delegation is exempt. So is a call on any collaborator that is not a persistence type — a subject resolver, a payload builder — and so is an inherited helper, which is called on `$this`.
+
+Injecting a handler is not a defence. A tool that delegates its write and then reads a repository for the response is the common shape, and is what this rule is for. Whether a handler is injected at all is [McpToolHandlerRule](#mcptoolhandlerrule)'s question.
+
+> `MCP tool SeriesRenameTool must not access persistent state directly (countBySeries()); read and write through a Command/Handler.`
+
+```php
+// BAD — the write delegates, the read does not
+#[McpTool(name: 'series_rename')]
+final readonly class SeriesRenameTool
+{
+    public function __construct(
+        private RenameSeriesHandler $renameSeries,
+        private DocumentRepository $documents,
+    ) {}
+
+    public function __invoke(string $series, string $newName): array
+    {
+        $renamed = ($this->renameSeries)(new RenameSeriesCommand($series, $newName));
+
+        return ['series' => $renamed->name, 'documentCount' => $this->documents->countBySeries($renamed)];
+    }
+}
+
+// GOOD — the handler returns what the response needs
+#[McpTool(name: 'series_rename')]
+final readonly class SeriesRenameTool
+{
+    public function __construct(private RenameSeriesHandler $renameSeries) {}
+
+    public function __invoke(string $series, string $newName): array
+    {
+        return ($this->renameSeries)(new RenameSeriesCommand($series, $newName));
+    }
 }
 ```
 
