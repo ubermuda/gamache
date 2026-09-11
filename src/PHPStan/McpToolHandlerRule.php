@@ -149,6 +149,12 @@ final readonly class McpToolHandlerRule implements Rule
      * analysed. The subclass is not, because a rule that needed reflection for
      * the class it is given could not run before the analysed file is
      * autoloadable.
+     *
+     * The check is shallow on purpose. It does not trace which constructor in a
+     * longer chain sets the property, so a parent that declares a handler
+     * property and never assigns it clears the subclass. Such a parent is a
+     * fatal error on first use, since a typed property cannot be read before it
+     * is initialised, and a lint rule is the wrong place to catch it.
      */
     private function inheritsHandler(Class_ $class, Scope $scope): bool
     {

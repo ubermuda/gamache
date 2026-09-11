@@ -30,8 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   different way. The controller rule keeps its constructor, its message, its identifier
   and its behaviour.
 
-  Neither rule follows an inherited property, and neither reads a nullsafe call: a base
-  class that holds the repository, and `$this->cards?->findAll()`, both pass. That is
+  Neither rule follows an inherited property, reads a nullsafe call, or looks inside a
+  compound type: a base class that holds the repository, `$this->cards?->findAll()`, and a
+  property typed `ObjectRepository|FallbackRepository` all pass. That is
   `ControllerNoDirectStateAccessRule`'s behaviour as it has always been, and closing
   either gap widens that rule for every project already consuming it. `McpToolHandlerRule` does follow an inherited handler, because the cost of the
   two gaps is not the same: a missed violation is a rule that has not helped yet, and a
