@@ -7,6 +7,9 @@ parameters:
             recordMethods:
                 - record
         controllerBaseClass: 'Symfony\Bundle\FrameworkBundle\Controller\AbstractController'
+        # Controllers, by FQCN, that need no handler — a route whose work the
+        # framework does. Empty = every controller that injects must delegate.
+        controllerHandlerExemptClasses: []
         csrfTokenAttributeClass: ''
         isGrantedAllowedAttributePrefixes:
             - 'ROLE_'
@@ -49,6 +52,7 @@ parametersSchema:
             recordMethods: listOf(string())
         ])
         controllerBaseClass: string()
+        controllerHandlerExemptClasses: listOf(string())
         csrfTokenAttributeClass: string()
         isGrantedAllowedAttributePrefixes: listOf(string())
         migrationsEnforcedFrom: string()
@@ -128,6 +132,13 @@ services:
         class: Gamache\PHPStan\ControllerNoDirectStateAccessRule
         arguments:
             controllerBaseClass: %gamache.controllerBaseClass%
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Gamache\PHPStan\ControllerHandlerRule
+        arguments:
+            controllerBaseClass: %gamache.controllerBaseClass%
+            ignoredControllers: %gamache.controllerHandlerExemptClasses%
         tags:
             - phpstan.rules.rule
     -

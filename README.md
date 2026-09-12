@@ -7,7 +7,7 @@ Gamache packages a set of opinionated conventions for Symfony applications and e
 | Surface | What it provides | Docs |
 |---|---|---|
 | `gamache` CLI | 15 project-level checks (config files, templates, translations, …) | [docs/checks.md](docs/checks.md) |
-| PHPStan | 37 rules for controllers, APIs, CQRS commands, forms, templates, routes, entities, translations, security | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
+| PHPStan | 38 rules for controllers, APIs, CQRS commands, forms, templates, routes, entities, translations, security | [docs/phpstan-rules.md](docs/phpstan-rules.md) |
 | PHP-CS-Fixer | 2 custom fixers for attribute formatting | [docs/php-cs-fixer.md](docs/php-cs-fixer.md) |
 | Twig-CS-Fixer | 6 custom rules for templates | [docs/twig-cs-fixer.md](docs/twig-cs-fixer.md) |
 | Rector | 1 custom rule + 2 built-in rules for repository injection and argument ordering | [docs/rector.md](docs/rector.md) |
@@ -103,13 +103,19 @@ includes:
     - vendor/ubermuda/gamache/extension.neon
 ```
 
-This registers all 37 rules at once. Ten parameters control the configurable rules:
+This registers all 38 rules at once. Eleven parameters control the configurable rules:
 
 ```neon
 parameters:
     gamache:
         # Base class your controllers must extend (default: AbstractController)
         controllerBaseClass: 'App\Controller\AppController'
+
+        # Controllers that need no handler, by FQCN — a route whose work the
+        # framework does, such as a login form the security firewall posts to
+        # (default: [] = every controller that injects must delegate)
+        controllerHandlerExemptClasses:
+            - 'App\Module\Account\Controller\LoginController'
 
         # #[IsGranted] string literals starting with one of these prefixes are
         # exempt from the Voter-constant rule (default: the four below)

@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ControllerHandlerRule`: a controller that injects anything must inject a handler.**
+  A controller whose constructor takes collaborators must take one typed `*Handler`.
+  Identifier `controller.missingHandler`. Configured by `gamache.controllerBaseClass` and
+  `gamache.controllerHandlerExemptClasses`.
+
+  A controller is a request/response shell. Work written into it is reachable only through
+  HTTP, so the second front door onto the same domain — a console command, an MCP tool, a
+  test — either cannot have that work or writes its own copy of it. The handler is also the
+  layer a unit test calls without a kernel.
+
+  A controller that declares no constructor is exempt, and the constructor is the whole
+  test. It injects nothing, so it renders and returns. The narrow shape is deliberate: a
+  GET route, or an action whose body is one `render()` call, says nothing about what the
+  controller was given, and a controller that injects a collaborator is doing work whatever
+  its method. An empty `__construct() {}` is reported, and is fixed by deleting it.
+
+  `controllerHandlerExemptClasses` names controllers that need no handler, and is empty by
+  default. It is for a route whose work the framework does: a login form the security
+  firewall posts to takes `AuthenticationUtils` and has nothing to delegate, so a handler
+  there would wrap nothing. No AST signal separates that from a controller that should
+  delegate, which is why it is configuration rather than detection. A consuming project
+  fills the list; gamache ships it empty, since a class name from one application does not
+  belong in a general package.
+
+  The rule reads the constructor the controller declares itself and does not follow one
+  inherited from a parent, unlike `McpToolHandlerRule`. Every controller under a project
+  base controller is a leaf class, and the base takes no handler on anyone's behalf.
+
 - **`McpToolHandlerRule` and `McpToolNoDirectStateAccessRule`: an MCP tool delegates its work.**
   A class carrying `#[McpTool]` must inject a handler — a constructor parameter typed
   `*Handler` — and must not call a Doctrine EntityManager, DBAL Connection or repository
@@ -49,6 +77,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   variable reaching no deployment needs no operator reference; `undocumentedEnvKeys` covers a
   variable that does reach one and is documented elsewhere, or named by a shorthand entry a
   whole-word match cannot find. Both exemption lists are checked for staleness.
+
+### Changed
+
+- **`McpToolHandlerRule` shares its handler-injection check.** `InjectedHandlerFinder`
+  answers whether a class keeps a handler its own constructor takes, which is the question
+  `ControllerHandlerRule` also asks. It matches `DirectStateAccessFinder`, extracted for the
+  state-access half of the same convention. The inheritance machinery stays in
+  `McpToolHandlerRule`, since following a handler held by a base class is a tool-shaped
+  problem. `McpToolHandlerRule`'s behaviour does not change.
 
 ### Fixed
 
