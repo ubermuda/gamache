@@ -5,19 +5,10 @@ declare(strict_types=1);
 namespace Gamache\PHPStan;
 
 use PhpParser\Node;
-use PhpParser\Node\Expr\Assign;
-use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\StaticCall;
-use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
-use PhpParser\Node\NullableType;
 use PhpParser\Node\Stmt\Class_;
-use PhpParser\Node\FunctionLike;
-use PhpParser\Node\Stmt\ClassMethod;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor;
-use PhpParser\NodeVisitorAbstract;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\Rule;
@@ -48,11 +39,12 @@ final readonly class McpToolHandlerRule implements Rule
 {
     private const string ATTRIBUTE = 'Mcp\Capability\Attribute\McpTool';
 
-    private const string SUFFIX = 'Handler';
+    private InjectedHandlerFinder $finder;
 
     public function __construct(
         private ReflectionProvider $reflectionProvider,
     ) {
+        $this->finder = new InjectedHandlerFinder();
     }
 
     public function getNodeType(): string
@@ -74,7 +66,7 @@ final readonly class McpToolHandlerRule implements Rule
             return [];
         }
 
-        if ($this->injectsHandler($node, $scope) || $this->inheritsHandler($node, $scope)) {
+        if ($this->finder->injects($node, $scope) || $this->inheritsHandler($node, $scope)) {
             return [];
         }
 
@@ -100,41 +92,6 @@ final readonly class McpToolHandlerRule implements Rule
         }
 
         return null;
-    }
-
-    /**
-     * A constructor parameter typed as something named `*Handler` that the tool
-     * keeps. Promotion is not required, since a constructor that assigns the
-     * parameter by hand injects it just the same — but a parameter that is
-     * neither promoted nor assigned is gone by the time `__invoke()` runs, so
-     * the tool has nothing to delegate to.
-     */
-    private function injectsHandler(Class_ $class, Scope $scope): bool
-    {
-        foreach ($class->stmts as $stmt) {
-            if (!$stmt instanceof ClassMethod || '__construct' !== $stmt->name->name) {
-                continue;
-            }
-
-            foreach ($stmt->params as $param) {
-                if (!$param->var instanceof Variable || !\is_string($param->var->name)) {
-                    continue;
-                }
-
-                foreach (self::typeNames($param->type, $scope) as $name) {
-                    if (!str_ends_with($name, self::SUFFIX)) {
-                        continue;
-                    }
-
-                    // Promoted constructor properties carry a visibility flag.
-                    if (0 !== $param->flags || self::isKept($stmt, $param->var->name)) {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -182,7 +139,7 @@ final readonly class McpToolHandlerRule implements Rule
             }
 
             foreach (self::reflectionTypeNames($property->getType()) as $name) {
-                if (str_ends_with($name, self::SUFFIX)) {
+                if (str_ends_with($name, InjectedHandlerFinder::SUFFIX)) {
                     return true;
                 }
             }
@@ -198,18 +155,12 @@ final readonly class McpToolHandlerRule implements Rule
      */
     private static function runsParentConstructor(Class_ $class): bool
     {
-        $constructor = null;
-        foreach ($class->stmts as $stmt) {
-            if ($stmt instanceof ClassMethod && '__construct' === $stmt->name->name) {
-                $constructor = $stmt;
-            }
-        }
-
+        $constructor = InjectedHandlerFinder::constructor($class);
         if (null === $constructor) {
             return true;
         }
 
-        foreach (self::executedNodes($constructor) as $node) {
+        foreach (InjectedHandlerFinder::executedNodes($constructor) as $node) {
             if ($node instanceof StaticCall
                 && $node->class instanceof Name && 'parent' === $node->class->toLowerString()
                 && $node->name instanceof Identifier && '__construct' === $node->name->toLowerString()) {
@@ -229,7 +180,7 @@ final readonly class McpToolHandlerRule implements Rule
     private static function reflectionTypeNames(?\ReflectionType $type): array
     {
         if ($type instanceof \ReflectionNamedType) {
-            return $type->isBuiltin() ? [] : [self::shortName($type->getName())];
+            return $type->isBuiltin() ? [] : [InjectedHandlerFinder::shortName($type->getName())];
         }
 
         if ($type instanceof \ReflectionUnionType || $type instanceof \ReflectionIntersectionType) {
@@ -242,93 +193,5 @@ final readonly class McpToolHandlerRule implements Rule
         }
 
         return [];
-    }
-
-    /** Whether the constructor assigns the named parameter to a property. */
-    private static function isKept(ClassMethod $constructor, string $parameter): bool
-    {
-        foreach (self::executedNodes($constructor) as $node) {
-            if ($node instanceof Assign
-                && $node->var instanceof PropertyFetch
-                && $node->var->var instanceof Variable
-                && 'this' === $node->var->var->name
-                && $node->expr instanceof Variable
-                && $parameter === $node->expr->name) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Every node the constructor body runs itself, with nested function scopes
-     * pruned. A closure the constructor builds and does not call runs later or
-     * never, so an assignment or a `parent::__construct()` inside one has not
-     * happened when the constructor returns.
-     *
-     * @return list<Node>
-     */
-    private static function executedNodes(ClassMethod $constructor): array
-    {
-        $visitor = new class extends NodeVisitorAbstract {
-            /** @var list<Node> */
-            public array $found = [];
-
-            public function enterNode(Node $node): ?int
-            {
-                if ($node instanceof FunctionLike) {
-                    return NodeVisitor::DONT_TRAVERSE_CHILDREN;
-                }
-
-                $this->found[] = $node;
-
-                return null;
-            }
-        };
-
-        new NodeTraverser($visitor)->traverse($constructor->stmts ?? []);
-
-        return $visitor->found;
-    }
-
-    /**
-     * The class names a parameter type resolves to, each shortened to its last
-     * segment. Resolution matters both ways: an import aliased to something
-     * else still names the handler class, and a name aliased *to* `*Handler`
-     * names whatever class it was imported from.
-     *
-     * A union or intersection contributes every branch, since any one of them
-     * can be the handler.
-     *
-     * @return list<string>
-     */
-    private static function typeNames(?Node $type, Scope $scope): array
-    {
-        if ($type instanceof NullableType) {
-            return self::typeNames($type->type, $scope);
-        }
-
-        if ($type instanceof Node\UnionType || $type instanceof Node\IntersectionType) {
-            $names = [];
-            foreach ($type->types as $branch) {
-                $names = [...$names, ...self::typeNames($branch, $scope)];
-            }
-
-            return $names;
-        }
-
-        if (!$type instanceof Name) {
-            return [];
-        }
-
-        return [self::shortName($scope->resolveName($type))];
-    }
-
-    private static function shortName(string $fqcn): string
-    {
-        $position = strrpos($fqcn, '\\');
-
-        return false === $position ? $fqcn : substr($fqcn, $position + 1);
     }
 }
