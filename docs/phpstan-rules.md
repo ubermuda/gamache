@@ -1,6 +1,6 @@
 # PHPStan rules
 
-Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 37 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
+Including `vendor/ubermuda/gamache/extension.neon` in your `phpstan.neon` registers all 38 rules (see the [README](../README.md#phpstan-rules) for setup and parameters).
 
 Every error carries an identifier, so you can opt out of a single rule with PHPStan's `ignoreErrors`:
 
@@ -12,7 +12,7 @@ parameters:
 
 All rules live in the `Gamache\PHPStan` namespace.
 
-**Controllers:** [ControllerParentRule](#controllerparentrule) · [ControllerSingleActionRule](#controllersingleactionrule) · [ControllerRouteAttributeRule](#controllerrouteattributerule) · [ControllerNoDirectStateAccessRule](#controllernodirectstateaccessrule) · [ControllerTemplateNameRule](#controllertemplatenamerule) · [DenyAccessUnlessGrantedRule](#denyaccessunlessgrantedrule) · [IsGrantedNoFullyAuthRule](#isgrantednofullyauthrule) · [IsGrantedClassLevelRule](#isgrantedclasslevelrule) · [IsGrantedVoterConstantRule](#isgrantedvoterconstantrule) · [CsrfTokenAttributeRule](#csrftokenattributerule)
+**Controllers:** [ControllerParentRule](#controllerparentrule) · [ControllerSingleActionRule](#controllersingleactionrule) · [ControllerRouteAttributeRule](#controllerrouteattributerule) · [ControllerNoDirectStateAccessRule](#controllernodirectstateaccessrule) · [ControllerHandlerRule](#controllerhandlerrule) · [ControllerTemplateNameRule](#controllertemplatenamerule) · [DenyAccessUnlessGrantedRule](#denyaccessunlessgrantedrule) · [IsGrantedNoFullyAuthRule](#isgrantednofullyauthrule) · [IsGrantedClassLevelRule](#isgrantedclasslevelrule) · [IsGrantedVoterConstantRule](#isgrantedvoterconstantrule) · [CsrfTokenAttributeRule](#csrftokenattributerule)
 **Routing:** [RouteNoUnderscorePrefixRule](#routenounderscoreprefixrule) · [RouteParamCamelCaseRule](#routeparamcamelcaserule)
 **API:** [ApiRouteConsistencyRule](#apirouteconsistencyrule) · [ApiControllerInputBindingRule](#apicontrollerinputbindingrule)
 **CQRS:** [CommandShapeRule](#commandshaperule) · [HandlerShapeRule](#handlershaperule)
@@ -174,6 +174,58 @@ class RetryDeliveryController extends AppController
     {
         ($this->retryDelivery)(new RetryDeliveryCommand(/* … */));
         // …
+    }
+}
+```
+
+---
+
+## ControllerHandlerRule
+
+**Identifier:** `controller.missingHandler`
+**Configured by:** `gamache.controllerBaseClass`, `gamache.controllerHandlerExemptClasses`
+
+A controller that declares a constructor must inject a handler: a constructor parameter whose type name ends in `Handler`.
+
+A controller is a request/response shell. Work written into it is reachable only through HTTP, so the second front door onto the same domain — a console command, an MCP tool, a test — either cannot have that work or writes its own copy of it. The handler is also the layer a unit test calls without a kernel.
+
+The rule cannot ask whether the injected handler is the one that does the work. A controller that injects a handler and still reaches for a repository passes here, and [ControllerNoDirectStateAccessRule](#controllernodirectstateaccessrule) reports it instead. The two rules answer different halves of the same convention, so run both.
+
+**A controller that declares no constructor is exempt.** It injects nothing, so it renders a template and returns, and there is no work for a handler to carry. The constructor is the whole test. A GET route, or an action whose body is one `render()` call, says nothing about what the controller was given — a controller that injects a collaborator is doing work, whatever its method. An empty `__construct() {}` is reported, which is correct and is fixed by deleting it.
+
+`gamache.controllerHandlerExemptClasses` names controllers that need no handler, by FQCN, and is empty by default. It is for a route whose work the framework does rather than the controller: a login form that the security firewall posts to takes `AuthenticationUtils` and has no work to delegate, so a handler there would wrap nothing. No AST signal separates that from a controller that should delegate, so the list is the consuming project's to fill.
+
+Promotion is not required: a constructor that assigns the parameter by hand injects it just the same. A parameter that is neither promoted nor assigned does not count, because nothing is left for the action to call. A union or intersection type counts when any branch of it is named `*Handler`. The suffix is read from the class the parameter resolves to, not from the name written at the parameter, so an import aliased to something shorter still counts and an unrelated class aliased to `SomethingHandler` does not.
+
+The rule reads the constructor the controller declares itself, and does not follow one inherited from a parent. Every controller under a project base controller is a leaf class, and the base takes no handler on anyone's behalf. [McpToolHandlerRule](#mcptoolhandlerrule) does follow a parent, because a base tool class that holds the handler is a shape tools take.
+
+> `Controller ShowWelcomeController injects no handler; give it a Command/Handler pair to delegate to.`
+
+```php
+// BAD — the work has no name and no home outside the request
+class ArchiveReviewController extends AppController
+{
+    public function __construct(
+        private readonly ReviewRepository $reviews,
+    ) {
+    }
+}
+
+// GOOD — the controller delegates
+class ArchiveReviewController extends AppController
+{
+    public function __construct(
+        private readonly ArchiveReviewHandler $archiveReview,
+    ) {
+    }
+}
+
+// ALSO GOOD — injects nothing, so there is nothing to delegate
+class ShowLegalController extends AppController
+{
+    public function __invoke(): Response
+    {
+        return $this->render('legal.html.twig');
     }
 }
 ```
