@@ -6,6 +6,7 @@ All checks live in the `Gamache\Check` namespace.
 
 - [CommentBudgetCheck](#commentbudgetcheck)
 - [DeploymentConfigParityCheck](#deploymentconfigparitycheck)
+- [DesignSystemAdoptionCheck](#designsystemadoptioncheck)
 - [FormTypeTranslationKeysCheck](#formtypetranslationkeyscheck)
 - [MessengerRoutingCheck](#messengerroutingcheck)
 - [NoArbitraryValuesCheck](#noarbitraryvaluescheck)
@@ -143,6 +144,43 @@ MERCURE_JWT_SECRET=
 # GOOD — prod.yaml, where setting it has an effect
 x-app-environment: &app-environment
   MERCURE_JWT_SECRET: "${MERCURE_JWT_SECRET:?set it in docker/compose/prod.env}"
+```
+
+---
+
+## DesignSystemAdoptionCheck
+
+Counts hand-written markup for design system components. Each component has a root class, such as `lp-btn` for a `Button` component. A template that writes the root class by hand instead of rendering the component gives one violation. The count shows how far the migration to the components has come.
+
+**Scans:** `templates/**/*.twig`. The check reads two forms of class list: an HTML `class="..."` or `class='...'` attribute, and a Twig hash key `class: '...'`, `'class': '...'` or `"class": "..."`. A class list counts once for a component when it holds the root class as a whole class name, also inside a Twig expression such as `{{ active ? 'lp-btn' : '' }}`. So `lp-btn lp-btn--primary` counts once, and `lp-btn--primary` or `lp-btn-group` alone counts zero. `data-class` and `:class` attributes do not count. The template that renders the component itself is skipped for that component only. Twig comments do not count. A Twig hash value with no quotes, such as `class: on ? 'lp-btn' : ''`, counts up to the next comma or closing brace.
+
+**Severity:** Warning for a component that is not enforced, so the run still exits 0. Error for an enforced component. `Hand-written lp-btn markup; render the Button component instead`
+
+**Options:**
+
+| Option | Type | Default |
+|---|---|---|
+| `components` | `list<DesignSystemComponent>` | `[]`, the components to count |
+| `ignoredPaths` | `list<string>` | `[]`, folder or file paths to skip, matched as whole path segments of the scanned path |
+
+A `DesignSystemComponent` takes `name`, `rootClass`, `ownTemplate` (the path of its own template, matched as the end of the scanned path, default `null`) and `enforced` (default `false`). Set `enforced` when no hand-written markup is left, so that new markup fails the run.
+
+```php
+new DesignSystemAdoptionCheck(
+    components: [
+        new DesignSystemComponent('Button', 'lp-btn', 'templates/components/Ds/Button.html.twig', enforced: true),
+        new DesignSystemComponent('Card', 'lp-card'),
+    ],
+    ignoredPaths: ['templates/legacy'],
+),
+```
+
+```twig
+{# BAD #}
+<a class="lp-btn lp-btn--primary" href="{{ path('home') }}">Home</a>
+
+{# GOOD #}
+<twig:Ds:Button variant="primary" href="{{ path('home') }}">Home</twig:Ds:Button>
 ```
 
 ---
