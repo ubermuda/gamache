@@ -1,0 +1,5 @@
+<a class="{{ on ? "lp-btn" : "" }}">One</a>
+{{ include('_link.html.twig', {class: 'a ' ~ (on ? 'lp-btn' : '')}) }}
+{{ include('_link.html.twig', {class: on ? 'lp-btn' : ''}) }}
+{# <a class="lp-btn">Commented out</a> #}
+<a class="lp-btn__icon {% if on %}lp-btn{% endif %}">Five</a>

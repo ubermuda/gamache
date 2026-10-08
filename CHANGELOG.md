@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`DesignSystemAdoptionCheck`: count hand-written markup of design system components.**
+  The check reads the class lists in Twig templates and counts each one that writes the root
+  class of a component, such as `lp-btn`, by hand. It warns until a component is enforced,
+  and then it fails the run.
+
 - **`ControllerHandlerRule`: a controller that injects anything must inject a handler.**
   A controller whose constructor takes collaborators must take one typed `*Handler`.
   Identifier `controller.missingHandler`. Configured by `gamache.controllerBaseClass` and
