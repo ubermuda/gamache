@@ -7,6 +7,7 @@ All checks live in the `Gamache\Check` namespace.
 - [CommentBudgetCheck](#commentbudgetcheck)
 - [DeploymentConfigParityCheck](#deploymentconfigparitycheck)
 - [DesignSystemAdoptionCheck](#designsystemadoptioncheck)
+- [DesignSystemPatternCheck](#designsystempatterncheck)
 - [FormTypeTranslationKeysCheck](#formtypetranslationkeyscheck)
 - [MessengerRoutingCheck](#messengerroutingcheck)
 - [NoArbitraryValuesCheck](#noarbitraryvaluescheck)
@@ -181,6 +182,64 @@ new DesignSystemAdoptionCheck(
 
 {# GOOD #}
 <twig:Ds:Button variant="primary" href="{{ path('home') }}">Home</twig:Ds:Button>
+```
+
+---
+
+## DesignSystemPatternCheck
+
+Finds hand-written copies of design system components that have no class of their own, such as a one-button form or a call to a date filter. `DesignSystemAdoptionCheck` cannot see these, because it reads class names only. Each pattern is a regular expression that matches the copy.
+
+**Scans:** `templates/**/*.twig`. Each pattern runs against the whole template, so a pattern can span several lines. A match gives one violation on its first line. Twig comments are blanked before the match, so commented-out markup does not count. The template that renders the component itself is skipped for that pattern only. A match is skipped when any of its lines holds the ignore marker, `@design-system-ignore` by default, for example in a Twig comment.
+
+**Severity:** Warning for a pattern that is not enforced, so the run still exits 0. Error for an enforced pattern. `Hand-written one-button form; render the Ds:ActionForm component instead`. A pattern that is not a valid regular expression gives one error per template.
+
+**Options:**
+
+| Option | Type | Default |
+|---|---|---|
+| `patterns` | `list<DesignSystemPattern>` | `[]`, the patterns to match |
+| `ignoreMarker` | `string` | `'@design-system-ignore'`; an empty string turns the marker off |
+| `ignoredPaths` | `list<string>` | `[]`, folder or file paths to skip, matched as whole path segments of the scanned path |
+
+A `DesignSystemPattern` takes `component` (the component to render instead), `pattern` (a full PCRE pattern with delimiters and flags), `description` (what a match is, used in the message), `ownTemplate` (the path of the component template, matched as the end of the scanned path, default `null`) and `enforced` (default `false`).
+
+```php
+new DesignSystemPatternCheck(
+    patterns: [
+        new DesignSystemPattern(
+            'Ds:RelativeTime',
+            '/\|\s*relative_time\b/',
+            'relative_time filter call',
+            'templates/components/Ds/RelativeTime.html.twig',
+            enforced: true,
+        ),
+        new DesignSystemPattern(
+            'Ds:ActionForm',
+            '~<form\b[^>]*\bmethod\s*=\s*["\']post["\'][^>]*>\s*<input\b[^>]*\bname\s*=\s*["\']_csrf_token["\'][^>]*>\s*<(button|twig:Ds:Button)\b[^>]*>(?:(?!<(?:button|twig:Ds:Button)\b).)*?</\1>\s*</form>~is',
+            'one-button form',
+            'templates/components/Ds/ActionForm.html.twig',
+            enforced: true,
+        ),
+    ],
+    ignoredPaths: ['admin'],
+),
+```
+
+```twig
+{# BAD #}
+<form method="post" action="{{ path('run_stop', {id: run.id}) }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token('run-stop') }}">
+    <button type="submit">Stop</button>
+</form>
+
+{# GOOD #}
+<twig:Ds:ActionForm action="{{ path('run_stop', {id: run.id}) }}" token="run-stop">
+    <twig:Ds:Button type="submit">Stop</twig:Ds:Button>
+</twig:Ds:ActionForm>
+
+{# GOOD: a copy that has a reason to stay #}
+<span>{{ at|relative_time }}</span> {# @design-system-ignore: inside a translated sentence #}
 ```
 
 ---
