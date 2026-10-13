@@ -1,0 +1,5 @@
+<time datetime="{{ at|date('c') }}">{{ at|relative_time }}</time>
+<p>{{ 'updated'|trans({'%when%': at | relative_time(now)}) }}</p>
+{# {{ at|relative_time }} #}
+<span>{{ at|relative_timestamp }}</span>
+<span>{{ at|relative_time }}</span> {# @design-system-ignore #}

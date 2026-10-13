@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`DesignSystemPatternCheck`: find hand-written copies of components that have no class.**
+  Each `DesignSystemPattern` is a regular expression that matches a copy, such as a
+  one-button CSRF form or a `relative_time` filter call, and names the component to render
+  instead. A pattern can span lines. A line with `@design-system-ignore` skips the match.
+  It warns until a pattern is enforced, and then it fails the run.
+
 - **`DesignSystemAdoptionCheck`: count hand-written markup of design system components.**
   The check reads the class lists in Twig templates and counts each one that writes the root
   class of a component, such as `lp-btn`, by hand. It warns until a component is enforced,

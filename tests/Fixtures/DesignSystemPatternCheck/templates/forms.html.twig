@@ -1,0 +1,31 @@
+<form method="post" action="{{ path('close') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token('close') }}">
+    <button type="submit">Close</button>
+</form>
+<form method="post" action="{{ path('two') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token('two') }}">
+    <button type="submit" name="a">A</button>
+    <button type="submit" name="b">B</button>
+</form>
+<form method="post" action="{{ path('extra') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token('extra') }}">
+    <input type="hidden" name="returnTo" value="/">
+    <button type="submit">Go</button>
+</form>
+<form method="get" action="{{ path('search') }}">
+    <input type="hidden" name="_csrf_token" value="x">
+    <button type="submit">Search</button>
+</form>
+<form method="post" action="{{ path('marked') }}">
+    {# @design-system-ignore: the action needs a raw form #}
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token('marked') }}">
+    <button type="submit">Marked</button>
+</form>
+{# <form method="post"><input type="hidden" name="_csrf_token" value=""><button>Old</button></form> #}
+<form class="inline" method="POST" action="{{ path('ds') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token('ds') }}">
+    <twig:Ds:Button type="submit"><twig:UX:Icon name="lucide:x" /> Stop</twig:Ds:Button>
+</form>
+<form method="post" action="{{ path('accept', {page: page > 1 ? page : null}) }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token('accept') }}">
+    <button type="submit" data-x="{{ a > b ? 'y' : 'n' }}">Accept</button>
+</form>
