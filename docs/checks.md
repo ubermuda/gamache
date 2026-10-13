@@ -216,13 +216,13 @@ new DesignSystemPatternCheck(
         ),
         new DesignSystemPattern(
             'Ds:ActionForm',
-            '~<form\b[^>]*\bmethod\s*=\s*["\']post["\'][^>]*>\s*<input\b[^>]*\bname\s*=\s*["\']_csrf_token["\'][^>]*>\s*<(button|twig:Ds:Button)\b[^>]*>(?:(?!<(?:button|twig:Ds:Button)\b).)*?</\1>\s*</form>~is',
+            '~<form\b(?=(?:\{\{(?:[^}]|\}(?!\}))*+\}\}|[^>{]|\{(?!\{))*?\bmethod\s*=\s*["\']post["\'])(?:\{\{(?:[^}]|\}(?!\}))*+\}\}|[^>{]|\{(?!\{))*+>\s*<input\b[^>]*\bname\s*=\s*["\']_csrf_token["\'][^>]*>\s*<(button|twig:Ds:Button)\b(?:\{\{(?:[^}]|\}(?!\}))*+\}\}|[^>{]|\{(?!\{))*+>(?:(?!<(?:button|twig:Ds:Button)\b).)*?</\1>\s*</form>~is',
             'one-button form',
             'templates/components/Ds/ActionForm.html.twig',
             enforced: true,
         ),
     ],
-    ignoredPaths: ['admin'],
+    ignoredPaths: ['templates/admin'],
 ),
 ```
 

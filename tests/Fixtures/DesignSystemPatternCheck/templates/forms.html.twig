@@ -25,3 +25,7 @@
 <form class="inline" method="POST" action="{{ path('ds') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token('ds') }}">
     <twig:Ds:Button type="submit"><twig:UX:Icon name="lucide:x" /> Stop</twig:Ds:Button>
 </form>
+<form method="post" action="{{ path('accept', {page: page > 1 ? page : null}) }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token('accept') }}">
+    <button type="submit" data-x="{{ a > b ? 'y' : 'n' }}">Accept</button>
+</form>

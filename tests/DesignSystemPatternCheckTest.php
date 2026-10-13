@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 
 final class DesignSystemPatternCheckTest extends TestCase
 {
-    private const string FORM_PATTERN = '~<form\b[^>]*\bmethod\s*=\s*["\']post["\'][^>]*>\s*<input\b[^>]*\bname\s*=\s*["\']_csrf_token["\'][^>]*>\s*<(button|twig:Ds:Button)\b[^>]*>(?:(?!<(?:button|twig:Ds:Button)\b).)*?</\1>\s*</form>~is';
+    private const string FORM_PATTERN = '~<form\b(?=(?:\{\{(?:[^}]|\}(?!\}))*+\}\}|[^>{]|\{(?!\{))*?\bmethod\s*=\s*["\']post["\'])(?:\{\{(?:[^}]|\}(?!\}))*+\}\}|[^>{]|\{(?!\{))*+>\s*<input\b[^>]*\bname\s*=\s*["\']_csrf_token["\'][^>]*>\s*<(button|twig:Ds:Button)\b(?:\{\{(?:[^}]|\}(?!\}))*+\}\}|[^>{]|\{(?!\{))*+>(?:(?!<(?:button|twig:Ds:Button)\b).)*?</\1>\s*</form>~is';
 
     private string $fixtures;
 
@@ -40,7 +40,7 @@ final class DesignSystemPatternCheckTest extends TestCase
         $check = new DesignSystemPatternCheck([$this->actionForm()]);
         $check->run($this->fixtures.'/forms.html.twig');
 
-        self::assertSame([1, 25], $this->lines($check->getResult()->violations));
+        self::assertSame([1, 25, 28], $this->lines($check->getResult()->violations));
     }
 
     public function test_custom_marker_replaces_the_default_one(): void
@@ -48,7 +48,7 @@ final class DesignSystemPatternCheckTest extends TestCase
         $check = new DesignSystemPatternCheck([$this->actionForm()], ignoreMarker: 'name="b"');
         $check->run($this->fixtures.'/forms.html.twig');
 
-        self::assertSame([1, 19, 25], $this->lines($check->getResult()->violations));
+        self::assertSame([1, 19, 25, 28], $this->lines($check->getResult()->violations));
     }
 
     public function test_empty_marker_skips_nothing(): void
